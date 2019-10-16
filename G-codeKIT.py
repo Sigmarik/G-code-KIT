@@ -104,7 +104,6 @@ def read(FileNames):
         IsEXE = True
     else:
         font = pygame.font.Font(None, 24)
-    scr = pygame.display.set_mode([450, 150])
     GlobalLength = 0
     for FileName in FileNames:
         try:
@@ -118,6 +117,7 @@ def read(FileNames):
     if input() == 'y':
         DetStep = math.radians(90)
         print('Turned ON simple mode')
+    scr = pygame.display.set_mode([450, 150])
     for period, FileName in enumerate(FileNames):
         curr_path = Path('.')
         try:
@@ -133,6 +133,8 @@ def read(FileNames):
         line = 0
         LenMemor = len(lines)
         CSpace = [0, 0, 0]
+        LastComand = ''
+        LastSpeed = 50
         while not (inp == 'M30' or inp == 'M30\n'):
             TimeMon = timee.monotonic()
             DeltaTime = TimeMon - tm
@@ -166,7 +168,17 @@ def read(FileNames):
             Comands = inp.split()
             if len(Comands) != 0:
                 try:
-                    if Comands[0] == 'G0' or Comands[0] == 'G00':
+                    if Comands[0][0] in 'XYZ':
+                        IsIncorrect = True
+                        print('\nWARNING! ' + '-' * 50)
+                        print('Comand arguments without comand - ' + inp)
+                        print('It may be comand ' + LastComand + '\n')
+                        Comands.append(LastComand)
+                        Comands = Comands[::-1]
+                    else:
+                        IsIncorrect = False
+                    if Comands[0] == 'G0' or Comands[0] == 'G00' or (IsIncorrect and (LastComand == 'G0')):
+                        LastComand = 'G0'
                         SecondStr = ''
                         Key = ''
                         for simbol in list(Comands[-1]):
@@ -224,7 +236,8 @@ def read(FileNames):
                         ProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
                         LProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
                         BlockCount += 1
-                    elif Comands[0] == 'G1' or Comands[0] == 'G01':
+                    elif Comands[0] == 'G1' or Comands[0] == 'G01' or (IsIncorrect and (LastComand == 'G1')):
+                        LastComand = 'G1'
                         SecondStr = ''
                         Key = ''
                         for simbol in list(Comands[-1]):
@@ -269,9 +282,17 @@ def read(FileNames):
                                 if Key == 'Z':
                                     tz = float(SecondStr)
                                 SecondStr = ''
+                                Key = 'F'
                             else:
                                 SecondStr = SecondStr + simbol
-                        FSpeed = float(SecondStr)
+                        if Key == 'X':
+                            tx = float(SecondStr)
+                        if Key == 'Y':
+                            ty = float(SecondStr)
+                        if Key == 'Z':
+                            tz = float(SecondStr)
+                        if Key == 'F':
+                            FSpeed = float(SecondStr)
                         SecondStr = ''
                         lines.append([[x * Mult, y * Mult, z * Mult], ToCoordSpace([tx * Mult, ty * Mult, tz * Mult], CSpace)])
                         colors.append(G1Color)
@@ -285,7 +306,8 @@ def read(FileNames):
                         ProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
                         LProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
                         BlockCount += 1
-                    elif Comands[0] == 'G2' or Comands[0] == 'G02':
+                    elif Comands[0] == 'G2' or Comands[0] == 'G02' or (IsIncorrect and (LastComand == 'G2')):
+                        LastComand = 'G2'
                         SecondStr = ''
                         Key = ''
                         Cx = x
@@ -429,7 +451,8 @@ def read(FileNames):
         ##                lines.append([MultVect([x, y, z], Mult), MultVect([Cx, Cy, tz], Mult)])
         ##                colors.append((0, 255, 255))
         ##                thimbs.append(10)
-                    elif Comands[0] == 'G3' or Comands[0] == 'G03':
+                    elif Comands[0] == 'G3' or Comands[0] == 'G03' or (IsIncorrect and (LastComand == 'G3')):
+                        LastComand = 'G3'
                         SecondStr = ''
                         Key = ''
                         Cx = x
@@ -761,218 +784,230 @@ print('Keyboard rotation speed -', RSPD)
 print('Mouse sensitive -', 1 / MouseSensDiv)
 print('Curve detalisation step angle -', DetStep)
 print('\n' * 5)
-print('Enter names of files to open with format (.gcode, .txt and other) splited by [Space]')
-lines, colors, thimbs, periods, BCs, Coms, ProgText, GoOnTimes, PTimes, LGoOnTimes, LPTimes, N, Time = read(input().split())
-pygame.init()
-MaxLen = 0
-for string in ProgText:
-    if len(string) > MaxLen:
-        MaxLen = len(string)
-#print(LGoOnTimes)
-#print(LPTimes)
-SCRX = 1000
-SCRY = 700
-SurfView = pygame.Surface([1000, 700])
-SurfViewTransf = GetDraftTransform(lines, [SCRX, SCRY], SHIFT)
-SVMult = SurfViewTransf[0]
-SVPos = SurfViewTransf[1]
-SetToSurf(lines, colors, SurfView, SurfViewTransf)
-try:
-    screen = pygame.display.set_mode([SCRX, SCRY])
-except:
-    print('Screen ERROR --------------------------------------------------------------')
-Speed = [0, 0, 0]
-RSpeed = [0, 0, 0]
-ShowI = 0
-clock = pygame.time.Clock()
-tm = timee.monotonic()
-#font = pygame.font.render('arial', 24)
-SwipeR = False
-ColorMode = False
-AnimationS = 0
-AnimTimer = 0
-Inform = False
-font = None
-if hasattr(sys, '_MEIPASS'):
-    #print('Record')
-    font = os.path.join('arial.otf')
-    font = pygame.font.Font(font, 12)
-    IsEXE = True
-else:
-    font = pygame.font.Font(None, 24)
-    IsEXE = False
-Controlls = True
-PAnimS = 0
-PAnimT = 0
-ShowPhrese = False
-SurfaceMod = False
-while KeepGoing:
-    #print('abc')
-    TimeMonot = timee.monotonic()
-    DeltaTime = TimeMonot - tm
-    tm = TimeMonot
-    screen.fill(BGColor)
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            KeepGoing = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_w:
-                Speed[0] -= SPD
-            if event.key == pygame.K_s:
-                Speed[0] += SPD
-            if event.key == pygame.K_a:
-                Speed[1] += SPD
-            if event.key == pygame.K_d:
-                Speed[1] -= SPD
-            if event.key == pygame.K_LCTRL:
-                Speed[2] += SPD
-            if event.key == pygame.K_SPACE:
-                Speed[2] -= SPD
-            if event.key == pygame.K_UP:
-                RSpeed[1] -= RSPD
-            if event.key == pygame.K_DOWN:
-                RSpeed[1] += RSPD
-            if event.key == pygame.K_LEFT:
-                RSpeed[2] -= RSPD
-            if event.key == pygame.K_RIGHT:
-                RSpeed[2] += RSPD
-            if event.key == pygame.K_q:
-                AnimationS -= 1
-            if event.key == pygame.K_e:
-                AnimationS += 1
-            if event.key == 61:
-                SPD += 500
-                RSPD += 1 / 6
-            if event.key == 45:
-                SPD -= 500
-                RSPD -= 1 / 6
-            if event.key == pygame.K_2:
-                PAnimS += 1
-                ShowPhrese = True
-            if event.key == pygame.K_1:
-                PAnimS -= 1
-                ShowPhrese = True
-            if event.key == pygame.K_LSHIFT:
-                ColorMode = not ColorMode
-            if event.key == pygame.K_ESCAPE:
-                KeepGoing = False
-            if event.key == pygame.K_F2:
-                Inform = not Inform
-            if event.key == pygame.K_F1:
-                Controlls = not Controlls
-            if event.key == pygame.K_COMMA:
-                MouseSensDiv += 10
-            if event.key == pygame.K_PERIOD and MouseSensDiv > 10:
-                MouseSensDiv -= 10
-            if event.key == pygame.K_F3:
-                SurfaceMod = not SurfaceMod
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_w:
-                Speed[0] -= -SPD
-            if event.key == pygame.K_s:
-                Speed[0] += -SPD
-            if event.key == pygame.K_a:
-                Speed[1] += -SPD
-            if event.key == pygame.K_d:
-                Speed[1] -= -SPD
-            if event.key == pygame.K_LCTRL:
-                Speed[2] += -SPD
-            if event.key == pygame.K_SPACE:
-                Speed[2] -= -SPD
-            if event.key == pygame.K_UP:
-                RSpeed[1] -= -RSPD
-            if event.key == pygame.K_DOWN:
-                RSpeed[1] += -RSPD
-            if event.key == pygame.K_LEFT:
-                RSpeed[2] -= -RSPD
-            if event.key == pygame.K_RIGHT:
-                RSpeed[2] += -RSPD
-            if event.key == pygame.K_q:
-                AnimationS += 1
-            if event.key == pygame.K_e:
-                AnimationS -= 1
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 4:
-                SDist += ScalingSPD
-            if event.button == 5 and SDist > ScalingSPD * 2:
-                SDist -= ScalingSPD
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            SwipeR = True
-            pygame.mouse.get_rel()
-            pygame.mouse.set_visible(False)
-        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            SwipeR = False
-            pygame.mouse.set_visible(True)
-    CamPos = Summ(CamPos, MultVect(RotateSpeed(Speed, CamRot[2]), DeltaTime))
-    CamRot = Summ(CamRot, MultVect(RSpeed, DeltaTime))
-    if SwipeR:
-        MRel = pygame.mouse.get_rel()
-        CamRot = Summ(CamRot, [0, MRel[1] / MouseSensDiv, MRel[0] / MouseSensDiv])
-        #pygame.mouse.set_pos([SCRX / 2, SCRY / 2])
-        #pygame.mouse.get_rel()
-    AnimTimer += DeltaTime * AnimationS
-    ShowI = int(AnimTimer * 10) % N
-    period = periods[BCs.index(ShowI)]
-    #if 0 <= PAnimT + PAnimS * DeltaTime < Time:
-    PAnimT = (PAnimT + (PAnimS * DeltaTime) / 60) % Time
-    #print(len(ScreenCoords(ToLocal(CamPos, CamRot, lines), SDist)))
-    if not SurfaceMod:
-        for i, ln in enumerate(ScreenCoords(ToLocal(CamPos, CamRot, lines), SDist)):
-            #print('abcd')
-            if (BCs + [-1])[i] != ShowI:
-                pygame.draw.line(screen, (colors[i] if period == periods[i] or ColorMode else (50, 50, 50)), Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), thimbs[i])
-            else:
-                pygame.draw.line(screen, StepSelectionColor, Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), 5)
-        PhreseLines = PhreseMesh(GetPhresePosition(PAnimT, lines, LGoOnTimes, LPTimes))
-        #print(PhreseLines)
-        if ShowPhrese:
-            for ln in ScreenCoords(ToLocal(CamPos, CamRot, PhreseLines), SDist):
-                pygame.draw.line(screen, (255, 255, 0), Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), 2)
+while True:
+    KeepGoing = True
+    print('Enter names of files to open with format (.gcode, .txt and other) splited by [Space]')
+    lines, colors, thimbs, periods, BCs, Coms, ProgText, GoOnTimes, PTimes, LGoOnTimes, LPTimes, N, Time = read(input().split())
+    pygame.init()
+    MaxLen = 0
+    for string in ProgText:
+        if len(string) > MaxLen:
+            MaxLen = len(string)
+    #print(LGoOnTimes)
+    #print(LPTimes)
+    SCRX = 1000
+    SCRY = 700
+    SurfView = pygame.Surface([1000, 700])
+    SurfViewTransf = GetDraftTransform(lines, [SCRX, SCRY], SHIFT)
+    SVMult = SurfViewTransf[0]
+    SVPos = SurfViewTransf[1]
+    SetToSurf(lines, colors, SurfView, SurfViewTransf)
+    try:
+        screen = pygame.display.set_mode([SCRX, SCRY])
+    except:
+        print('Screen ERROR --------------------------------------------------------------')
+    Speed = [0, 0, 0]
+    RSpeed = [0, 0, 0]
+    ShowI = 0
+    clock = pygame.time.Clock()
+    tm = timee.monotonic()
+    #font = pygame.font.render('arial', 24)
+    SwipeR = False
+    ColorMode = False
+    AnimationS = 0
+    AnimTimer = 0
+    Inform = False
+    font = None
+    if hasattr(sys, '_MEIPASS'):
+        #print('Record')
+        font = os.path.join('arial.otf')
+        font = pygame.font.Font(font, 12)
+        IsEXE = True
     else:
-        screen.blit(SurfView, (0, 0))
-        pygame.draw.circle(screen, StepSelectionColor, [int(SVPos[0] + -CamPos[1] * SVMult), int(SVPos[1] + -CamPos[0] * SVMult)], 5, 5)
-    if Inform:
-        #screen.fill((0, 0, 255))
-        screen.blit(font.render('Distance to screen surface: ' + str(SDist), 0, (255, 255, 255)), [0, 0])
-        screen.blit(font.render('Movement speed: ' + str(SPD), 0, (255, 255, 255)), [0, 30])
-        screen.blit(font.render('Arrow rotation speed: ' + str(math.degrees(RSPD)) + '                   Mouse senitive: ' + str(1 / MouseSensDiv), 0, (255, 255, 255)), [0, 60])
-        screen.blit(font.render('World camera position: ' + 'X ' + str(-CamPos[0] / Mult) + '   Y ' + str(-CamPos[1] / Mult) + '   Z ' + str(-CamPos[2] / Mult), 0, (255, 255, 255)), [0, 90])
-        screen.blit(font.render('World camera rotation: ' + 'X ' + str(CamRot[0] / Mult) + '   Y ' + str(CamRot[1] / Mult) + '   Z ' + str(CamRot[2] / Mult), 0, (255, 255, 255)), [0, 120])
-        screen.blit(font.render('Global step: ' + str(ShowI + 1), 0, (255, 255, 255)), [0, 150])
-        screen.blit(font.render('Time: ' + ToSeconds(Time), 0, (255, 255, 255)), [0, 180])
-        screen.blit(font.render('Step start time: ' + ToSeconds(GoOnTimes[BCs.index(ShowI)]), 0, (255, 255, 255)), [0, 210])
-        screen.blit(font.render('Step action time: ' + ToSeconds(PTimes[BCs.index(ShowI)]), 0, (255, 255, 255)), [0, 240])
-        screen.blit(font.render('Phrese animation time speed: ' + str(PAnimS), 0, (255, 255, 255)), [0, 270])
-        screen.blit(font.render('Global phrese animation time: ' + ToSeconds(PAnimT), 0, (255, 255, 255)), [0, 300])
-        LN = Coms[BCs.index(ShowI)]
-        SimbMult = 9.5
-        if IsEXE:
-            SimbMult = 7
-        pygame.draw.rect(screen, FrameColor, [0, SCRY - 280, (MaxLen + 4) * SimbMult, 280])
-        pygame.draw.rect(screen, SelectionColor, [0, SCRY - 181, (MaxLen + 4) * SimbMult, 16])
-        for i in range(-4, 5):
-            if 0 <= LN + i < len(ProgText):
-                if i != -1:
-                    screen.blit(font.render((ProgText[LN + i][:-1] if ProgText[LN + i][-1] == '\n' else ProgText[LN + i]), 0, (255, 255, 255)), [0, SCRY - (5 - i) * 30])
-                else:
-                    screen.blit(font.render('>>' + ProgText[LN + i][:-1] + '<<', 0, SelectionTextColor), [0, SCRY - (5 - i) * 30])
-##        screen.blit(font.render((ProgText[LN - 3][:-1] if LN - 3 >= 0 else ''), 0, (255, 255, 255)), [0, SCRY - 240])
-##        screen.blit(font.render((ProgText[LN - 2][:-1] if LN - 2 >= 0 else ''), 0, (255, 255, 255)), [0, SCRY - 210])
-##        screen.blit(font.render('>>' + (ProgText[LN - 1][:-1] if LN - 1 >= 0 else '') + '<<', 0, (255, 255, 255)), [0, SCRY - 180])
-##        screen.blit(font.render((ProgText[LN][:-1] if LN < len(ProgText) else ''), 0, (255, 255, 255)), [0, SCRY - 150])
-##        screen.blit(font.render((ProgText[LN + 1][:-1] if LN < len(ProgText) else ''), 0, (255, 255, 255)), [0, SCRY - 120])
-##        screen.blit(font.render((ProgText[LN + 2][:-1] if LN < len(ProgText) else ''), 0, (255, 255, 255)), [0, SCRY - 90])
-##        screen.blit(font.render((ProgText[LN + 3][:-1] if LN < len(ProgText) else ''), 0, (255, 255, 255)), [0, SCRY - 60])
-##        screen.blit(font.render((ProgText[LN + 4][:-1] if LN < len(ProgText) else ''), 0, (255, 255, 255)), [0, SCRY - 30])
-    if Controlls:
-        screen.fill((0, 0, 255))
-        screen.blit(font.render('Moving - WASD, [LCtrl], [Space]                Zoom - [Mouse wheel Up/Down]', 0, (255, 255, 255)), [0, 0])
-        screen.blit(font.render('Rotation - [Arrows] or [Mouse]                 Mous sensitive change - [,], [.]', 0, (255, 255, 255)), [0, 30])
-        screen.blit(font.render('Speed change - [+], [-]                        Phrese animation speed change - [1], [2]', 0, (255, 255, 255)), [0, 60])
-        screen.blit(font.render('Step change - [Q], [E]', 0, (255, 255, 255)), [0, 90])
-        screen.blit(font.render('Show all models in color mode (On/Off) - [LShift]', 0, (255, 255, 255)), [0, 120])
-        screen.blit(font.render('World information - [F2]                       2D draft view ON/OFF - [F3]', 0, (255, 255, 255)), [0, 150])
-        screen.blit(font.render('Help bar Open/Close - [F1]', 0, (255, 255, 255)), [0, 180])
-    pygame.display.update()
-    clock.tick(60)
+        font = pygame.font.Font(None, 24)
+        IsEXE = False
+    Controlls = True
+    PAnimS = 0
+    PAnimT = 0
+    ShowPhrese = False
+    SurfaceMod = False
+    while KeepGoing:
+        #print('abc')
+        TimeMonot = timee.monotonic()
+        DeltaTime = TimeMonot - tm
+        tm = TimeMonot
+        screen.fill(BGColor)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                KeepGoing = False
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_w:
+                    Speed[0] -= SPD
+                if event.key == pygame.K_s:
+                    Speed[0] += SPD
+                if event.key == pygame.K_a:
+                    Speed[1] += SPD
+                if event.key == pygame.K_d:
+                    Speed[1] -= SPD
+                if event.key == pygame.K_LCTRL:
+                    Speed[2] += SPD
+                if event.key == pygame.K_SPACE:
+                    Speed[2] -= SPD
+                if event.key == pygame.K_UP:
+                    RSpeed[1] -= RSPD
+                if event.key == pygame.K_DOWN:
+                    RSpeed[1] += RSPD
+                if event.key == pygame.K_LEFT:
+                    RSpeed[2] -= RSPD
+                if event.key == pygame.K_RIGHT:
+                    RSpeed[2] += RSPD
+                if event.key == pygame.K_q:
+                    AnimationS -= 1
+                if event.key == pygame.K_e:
+                    AnimationS += 1
+                if event.key == 61:
+                    SPD += 500
+                    RSPD += 1 / 6
+                if event.key == 45:
+                    SPD -= 500
+                    RSPD -= 1 / 6
+                if event.key == pygame.K_2:
+                    PAnimS += 1
+                    ShowPhrese = True
+                if event.key == pygame.K_1:
+                    PAnimS -= 1
+                    ShowPhrese = True
+                if event.key == pygame.K_LSHIFT:
+                    ColorMode = not ColorMode
+                if event.key == pygame.K_ESCAPE:
+                    KeepGoing = False
+                    pygame.display.quit()
+                    print('Exit from program or load new file? [load / exit]')
+                    if input() == 'exit':
+                        pygame.quit()
+                        exit()
+                if event.key == pygame.K_F2:
+                    Inform = not Inform
+                if event.key == pygame.K_F1:
+                    Controlls = not Controlls
+                if event.key == pygame.K_COMMA:
+                    MouseSensDiv += 10
+                if event.key == pygame.K_PERIOD and MouseSensDiv > 10:
+                    MouseSensDiv -= 10
+                if event.key == pygame.K_F3:
+                    SurfaceMod = not SurfaceMod
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_w:
+                    Speed[0] -= -SPD
+                if event.key == pygame.K_s:
+                    Speed[0] += -SPD
+                if event.key == pygame.K_a:
+                    Speed[1] += -SPD
+                if event.key == pygame.K_d:
+                    Speed[1] -= -SPD
+                if event.key == pygame.K_LCTRL:
+                    Speed[2] += -SPD
+                if event.key == pygame.K_SPACE:
+                    Speed[2] -= -SPD
+                if event.key == pygame.K_UP:
+                    RSpeed[1] -= -RSPD
+                if event.key == pygame.K_DOWN:
+                    RSpeed[1] += -RSPD
+                if event.key == pygame.K_LEFT:
+                    RSpeed[2] -= -RSPD
+                if event.key == pygame.K_RIGHT:
+                    RSpeed[2] += -RSPD
+                if event.key == pygame.K_q:
+                    AnimationS += 1
+                if event.key == pygame.K_e:
+                    AnimationS -= 1
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 4:
+                    SDist += ScalingSPD
+                if event.button == 5 and SDist > ScalingSPD * 2:
+                    SDist -= ScalingSPD
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                SwipeR = True
+                pygame.mouse.get_rel()
+                pygame.mouse.set_visible(False)
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                SwipeR = False
+                pygame.mouse.set_visible(True)
+        if KeepGoing:
+            CamPos = Summ(CamPos, MultVect(RotateSpeed(Speed, CamRot[2]), DeltaTime))
+            CamRot = Summ(CamRot, MultVect(RSpeed, DeltaTime))
+            if SwipeR:
+                MRel = pygame.mouse.get_rel()
+                CamRot = Summ(CamRot, [0, MRel[1] / MouseSensDiv, MRel[0] / MouseSensDiv])
+                #pygame.mouse.set_pos([SCRX / 2, SCRY / 2])
+                #pygame.mouse.get_rel()
+            AnimTimer += DeltaTime * AnimationS
+            ShowI = int(AnimTimer * 10) % N
+            period = periods[BCs.index(ShowI)]
+            #if 0 <= PAnimT + PAnimS * DeltaTime < Time:
+            PAnimT = (PAnimT + (PAnimS * DeltaTime) / 60) % Time
+            #print(len(ScreenCoords(ToLocal(CamPos, CamRot, lines), SDist)))
+            if not SurfaceMod:
+                for i, ln in enumerate(ScreenCoords(ToLocal(CamPos, CamRot, lines), SDist)):
+                    #print('abcd')
+                    if (BCs + [-1])[i] != ShowI:
+                        pygame.draw.line(screen, (colors[i] if period == periods[i] or ColorMode else (50, 50, 50)), Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), thimbs[i])
+                    else:
+                        pygame.draw.line(screen, StepSelectionColor, Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), 5)
+                PhreseLines = PhreseMesh(GetPhresePosition(PAnimT, lines, LGoOnTimes, LPTimes))
+                #print(PhreseLines)
+                if ShowPhrese:
+                    for ln in ScreenCoords(ToLocal(CamPos, CamRot, PhreseLines), SDist):
+                        pygame.draw.line(screen, (255, 255, 0), Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), 2)
+            else:
+                K = SDist / 400
+                SV = pygame.transform.scale(SurfView, [int(SCRX * K), int(SCRY * K)])
+                screen.blit(SV, [int(-K * (SVPos[0] + -CamPos[1] * SVMult) + SCRX // 2), int(-K * (SVPos[1] + -CamPos[0] * SVMult) + SCRY // 2)])
+                pygame.draw.circle(screen, StepSelectionColor, [int(SCRX // 2), int(SCRY // 2)], 5, 5)
+            if Inform:
+                #screen.fill((0, 0, 255))
+                screen.blit(font.render('Distance to screen surface: ' + str(SDist), 0, (255, 255, 255)), [0, 0])
+                screen.blit(font.render('Movement speed: ' + str(SPD), 0, (255, 255, 255)), [0, 30])
+                screen.blit(font.render('Arrow rotation speed: ' + str(math.degrees(RSPD)) + '                   Mouse senitive: ' + str(1 / MouseSensDiv), 0, (255, 255, 255)), [0, 60])
+                screen.blit(font.render('World camera position: ' + 'X ' + str(-CamPos[0] / Mult) + '   Y ' + str(-CamPos[1] / Mult) + '   Z ' + str(-CamPos[2] / Mult), 0, (255, 255, 255)), [0, 90])
+                screen.blit(font.render('World camera rotation: ' + 'X ' + str(CamRot[0] / Mult) + '   Y ' + str(CamRot[1] / Mult) + '   Z ' + str(CamRot[2] / Mult), 0, (255, 255, 255)), [0, 120])
+                screen.blit(font.render('Global step: ' + str(ShowI + 1), 0, (255, 255, 255)), [0, 150])
+                screen.blit(font.render('Time: ' + ToSeconds(Time), 0, (255, 255, 255)), [0, 180])
+                screen.blit(font.render('Step start time: ' + ToSeconds(GoOnTimes[BCs.index(ShowI)]), 0, (255, 255, 255)), [0, 210])
+                screen.blit(font.render('Step action time: ' + ToSeconds(PTimes[BCs.index(ShowI)]), 0, (255, 255, 255)), [0, 240])
+                screen.blit(font.render('Phrese animation time speed: ' + str(PAnimS), 0, (255, 255, 255)), [0, 270])
+                screen.blit(font.render('Global phrese animation time: ' + ToSeconds(PAnimT), 0, (255, 255, 255)), [0, 300])
+                LN = Coms[BCs.index(ShowI)]
+                SimbMult = 9.5
+                if IsEXE:
+                    SimbMult = 7
+                pygame.draw.rect(screen, FrameColor, [0, SCRY - 280, (MaxLen + 4) * SimbMult, 280])
+                pygame.draw.rect(screen, SelectionColor, [0, SCRY - 181, (MaxLen + 4) * SimbMult, 16])
+                for i in range(-4, 5):
+                    if 0 <= LN + i < len(ProgText):
+                        if i != -1:
+                            screen.blit(font.render((ProgText[LN + i][:-1] if ProgText[LN + i][-1] == '\n' else ProgText[LN + i]), 0, (255, 255, 255)), [0, SCRY - (5 - i) * 30])
+                        else:
+                            screen.blit(font.render('>>' + ProgText[LN + i][:-1] + '<<', 0, SelectionTextColor), [0, SCRY - (5 - i) * 30])
+        ##        screen.blit(font.render((ProgText[LN - 3][:-1] if LN - 3 >= 0 else ''), 0, (255, 255, 255)), [0, SCRY - 240])
+        ##        screen.blit(font.render((ProgText[LN - 2][:-1] if LN - 2 >= 0 else ''), 0, (255, 255, 255)), [0, SCRY - 210])
+        ##        screen.blit(font.render('>>' + (ProgText[LN - 1][:-1] if LN - 1 >= 0 else '') + '<<', 0, (255, 255, 255)), [0, SCRY - 180])
+        ##        screen.blit(font.render((ProgText[LN][:-1] if LN < len(ProgText) else ''), 0, (255, 255, 255)), [0, SCRY - 150])
+        ##        screen.blit(font.render((ProgText[LN + 1][:-1] if LN < len(ProgText) else ''), 0, (255, 255, 255)), [0, SCRY - 120])
+        ##        screen.blit(font.render((ProgText[LN + 2][:-1] if LN < len(ProgText) else ''), 0, (255, 255, 255)), [0, SCRY - 90])
+        ##        screen.blit(font.render((ProgText[LN + 3][:-1] if LN < len(ProgText) else ''), 0, (255, 255, 255)), [0, SCRY - 60])
+        ##        screen.blit(font.render((ProgText[LN + 4][:-1] if LN < len(ProgText) else ''), 0, (255, 255, 255)), [0, SCRY - 30])
+            if Controlls:
+                screen.fill((0, 0, 255))
+                screen.blit(font.render('Moving - WASD, [LCtrl], [Space]                Zoom - [Mouse wheel Up/Down]', 0, (255, 255, 255)), [0, 0])
+                screen.blit(font.render('Rotation - [Arrows] or [Mouse]                 Mous sensitive change - [,], [.]', 0, (255, 255, 255)), [0, 30])
+                screen.blit(font.render('Speed change - [+], [-]                        Phrese animation speed change - [1], [2]', 0, (255, 255, 255)), [0, 60])
+                screen.blit(font.render('Step change - [Q], [E]', 0, (255, 255, 255)), [0, 90])
+                screen.blit(font.render('Show all models in color mode (On/Off) - [LShift]', 0, (255, 255, 255)), [0, 120])
+                screen.blit(font.render('World information - [F2]                       2D draft view ON/OFF - [F3]', 0, (255, 255, 255)), [0, 150])
+                screen.blit(font.render('Help bar Open/Close - [F1]', 0, (255, 255, 255)), [0, 180])
+            pygame.display.update()
+            clock.tick(60)
 pygame.quit()
