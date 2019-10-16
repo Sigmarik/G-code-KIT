@@ -2,7 +2,7 @@ import pygame
 import threading
 import sys
 import math
-import time
+import time as timee
 import sys
 import os
 from pathlib import Path
@@ -26,6 +26,7 @@ SPD = 3000
 Mult = 500
 RSPD = 1
 DetStep = 5
+SHIFT = 25
 DetStep = math.radians(DetStep)
 MouseSensDiv = 100
 ScalingSPD = 10
@@ -79,6 +80,7 @@ def ToSeconds(minutes):
     return str(int(minutes)) + ' minutes ' + str(int((minutes - int(minutes)) * 6000) / 100) + ' seconds'
 
 def read(FileNames):
+    global DetStep
     lines = []
     colors = []
     thimbs = []
@@ -93,6 +95,8 @@ def read(FileNames):
     GlobalText = []
     time = 0
     GLine = -1
+    TimeS = 0.01
+    tm = timee.monotonic()
     if hasattr(sys, '_MEIPASS'):
         #print('Record')
         font = os.path.join('arial.otf')
@@ -110,10 +114,12 @@ def read(FileNames):
             print("No file", FileName)
             input('Press [Enter] to exit.')
             exit()
+    print('Your filelength ' + str(GlobalLength) + ' lines. Turn ON simple mode [y/n]')
+    if input() == 'y':
+        DetStep = math.radians(90)
+        print('Turned ON simple mode')
     for period, FileName in enumerate(FileNames):
         curr_path = Path('.')
-        print(f"Current path: {curr_path.absolute()}")
-        print(f"Filename: {FileName}")
         try:
             file = open(FileName, 'r')
         except:
@@ -128,16 +134,23 @@ def read(FileNames):
         LenMemor = len(lines)
         CSpace = [0, 0, 0]
         while not (inp == 'M30' or inp == 'M30\n'):
+            TimeMon = timee.monotonic()
+            DeltaTime = TimeMon - tm
+            tm = TimeMon
+            TimeS += DeltaTime
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
             percent = max(GLine / GlobalLength, 0)
+            PercentSpeed = max(percent / TimeS, 0.01)
             scr.fill((0, 0, 255))
             pygame.draw.rect(scr, (255, 255, 255), [10, 50, 430, 50])
             pygame.draw.rect(scr, (50, 50, 50), [12, 52, 426, 46])
             pygame.draw.rect(scr, (0, 255, 0), [14, 54, 422 * percent, 42])
-            scr.blit(font.render(str(int(percent * 100)) + '%', 0, (255, 255, 255)), [10, 12])
+            scr.blit(font.render(str(int(percent * 100)) + '%', 0, (255, 255, 255)), [10, 10])
+            #print((1 - percent) / PercentSpeed)
+            scr.blit(font.render('Time - ' + str((1 - percent) / PercentSpeed) + ' s      Time left ' + str(int(TimeS)) + ' s', 0, (255, 255, 255)), [10, 24])
             scr.blit(font.render('Loading file ' + FileName, 0, (255, 255, 255)), [10, 112])
             scr.blit(font.render(inp[:-1], 0, (255, 255, 255)), [10, 130])
             pygame.display.update()
@@ -146,240 +159,257 @@ def read(FileNames):
             tx, ty, tz = x, y, z
             line += 1
             GLine += 1
+            for i, simb in enumerate(inp):
+                if (simb not in '1234567890') and simb != 'G':
+                    inp = inp[:i] + ' ' + inp[i:]
+                    break
             Comands = inp.split()
             if len(Comands) != 0:
-                if Comands[0] == 'G0' or Comands[0] == 'G00':
-                    SecondStr = ''
-                    Key = ''
-                    for simbol in list(Comands[1]):
-                        if simbol == 'X':
-                            if Key != '':
-                                if Key == 'X':
-                                    print('ERROR! Line -', line, '\n    X coordinate was set twice...')
-                                    tx = float(SecondStr)
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'X'
-                        elif simbol == 'Y':
-                            if Key != '':
-                                if Key == 'Y':
-                                    print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'Y'
-                        elif simbol == 'Z':
-                            if Key != '':
-                                if Key == 'Z':
-                                    print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
-                                    tz = float(SecondStr)
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'Z'
-                        else:
-                            SecondStr = SecondStr + simbol
-                    if Key == 'X':
-                        tx = float(SecondStr)
-                    if Key == 'Y':
-                        ty = float(SecondStr)
-                    if Key == 'Z':
-                        tz = float(SecondStr)
-                    FSpeed = 4100
-                    lines.append([[x * Mult, y * Mult, z * Mult], ToCoordSpace([tx * Mult, ty * Mult, tz * Mult], CSpace)])
-                    colors.append(G0Color)
-                    thimbs.append(1)
-                    periods.append(period)
-                    BCounts.append(BlockCount)
-                    Coms.append(GLine)
-                    GoOnTimes.append(time)
-                    LGoOnTimes.append(time)
-                    time += Dist3([x, y, z], [tx, ty, tz]) / FSpeed
-                    ProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
-                    LProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
-                    BlockCount += 1
-                elif Comands[0] == 'G1' or Comands[0] == 'G01':
-                    SecondStr = ''
-                    Key = ''
-                    for simbol in list(Comands[1]):
-                        if simbol == 'X':
-                            if Key != '':
-                                if Key == 'X':
-                                    print('ERROR! Line -', line, '\n    X coordinate was set twice...')
-                                    tx = float(SecondStr)
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'X'
-                        elif simbol == 'Y':
-                            if Key != '':
-                                if Key == 'Y':
-                                    print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'Y'
-                        elif simbol == 'Z':
-                            if Key != '':
-                                if Key == 'Z':
-                                    print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
-                                    tz = float(SecondStr)
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'Z'
-                        elif simbol == 'F':
-                            if Key == 'X':
-                                tx = float(SecondStr)
-                            if Key == 'Y':
-                                ty = float(SecondStr)
-                            if Key == 'Z':
-                                tz = float(SecondStr)
-                            SecondStr = ''
-                        else:
-                            SecondStr = SecondStr + simbol
-                    FSpeed = float(SecondStr)
-                    SecondStr = ''
-                    lines.append([[x * Mult, y * Mult, z * Mult], ToCoordSpace([tx * Mult, ty * Mult, tz * Mult], CSpace)])
-                    colors.append(G1Color)
-                    thimbs.append(2)
-                    periods.append(period)
-                    BCounts.append(BlockCount)
-                    Coms.append(GLine)
-                    GoOnTimes.append(time)
-                    LGoOnTimes.append(time)
-                    time += Dist3([x, y, z], [tx, ty, tz]) / FSpeed
-                    ProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
-                    LProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
-                    BlockCount += 1
-                elif Comands[0] == 'G2' or Comands[0] == 'G02':
-                    SecondStr = ''
-                    Key = ''
-                    Cx = x
-                    Cy = y
-                    RadMet = False
-                    for index, simbol in enumerate(list(Comands[1])):
-                        if simbol == 'X':
-                            if Key != '':
-                                if Key == 'X':
-                                    print('ERROR! Line -', line, '\n    X coordinate was set twice...')
-                                    tx = float(SecondStr)
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'X'
-                        elif simbol == 'Y':
-                            if Key != '':
-                                if Key == 'Y':
-                                    print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'Y'
-                        elif simbol == 'Z':
-                            if Key != '':
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                if Key == 'Z':
-                                    print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'Z'
-                        elif simbol == 'I':
-                            if Key != '':
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'I'
-                        elif simbol == 'J':
-                            Cx = x + float(SecondStr)
-                            SecondStr = ''
-                        elif simbol == 'R':
-                            if Key != '':
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                            RadMet = True
-                            SecondStr = ''
-                        elif simbol == 'F':
-                            FSpeed = float(Comands[1][index + 1:])
-                            break
-                        else:
-                            SecondStr = SecondStr + simbol
-                    tx, ty, tz = ToCoordSpace([tx, ty, tz], CSpace)
-                    if not RadMet:
-                        Cy = y + float(SecondStr)
+                try:
+                    if Comands[0] == 'G0' or Comands[0] == 'G00':
                         SecondStr = ''
-                    else:
-                        Radius = float(SecondStr)
-                        StVector = [tx - x, ty - y]
-                        CP = [x + StVector[0] / 2, y + StVector[1] / 2]
-                        PerpVector = [-StVector[1], StVector[0]]
-                        Cxt, Cyt = MultVect(PerpVector, ((Radius ** 2 - (Dist((0, 0), StVector) / 2) ** 2) ** 0.5) / Dist((0, 0), PerpVector))
-                        Cxt += CP[0]
-                        Cyt += CP[1]
-                        Cx = Cxt
-                        Cy = Cyt
-                        Angle1 = ToAngle(*(x - Cx, y - Cy))
-                        Angle2 = ToAngle(*(tx - Cx, ty - Cy))
-                        Step = (DeltaAngleRadCW(Angle1, Angle2))
-                        #print(math.degrees(Step))
-                        if (Step > math.radians(180) and Radius > 0) or (Step < math.radians(180) and Radius < 0):
-                            Cxt, Cyt = MultVect(MultVect(PerpVector, -1), ((Radius ** 2 - (Dist((0, 0), StVector) / 2) ** 2) ** 0.5) / Dist((0, 0), PerpVector))
+                        Key = ''
+                        for simbol in list(Comands[-1]):
+                            if simbol == 'X':
+                                if Key != '':
+                                    if Key == 'X':
+                                        print('ERROR! Line -', line, '\n    X coordinate was set twice...')
+                                        tx = float(SecondStr)
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'X'
+                            elif simbol == 'Y':
+                                if Key != '':
+                                    if Key == 'Y':
+                                        print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'Y'
+                            elif simbol == 'Z':
+                                if Key != '':
+                                    if Key == 'Z':
+                                        print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
+                                        tz = float(SecondStr)
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'Z'
+                            else:
+                                SecondStr = SecondStr + simbol
+                        if Key == 'X':
+                            tx = float(SecondStr)
+                        if Key == 'Y':
+                            ty = float(SecondStr)
+                        if Key == 'Z':
+                            tz = float(SecondStr)
+                        FSpeed = 4100
+                        lines.append([[x * Mult, y * Mult, z * Mult], ToCoordSpace([tx * Mult, ty * Mult, tz * Mult], CSpace)])
+                        colors.append(G0Color)
+                        thimbs.append(1)
+                        periods.append(period)
+                        BCounts.append(BlockCount)
+                        Coms.append(GLine)
+                        GoOnTimes.append(time)
+                        LGoOnTimes.append(time)
+                        time += Dist3([x, y, z], [tx, ty, tz]) / FSpeed
+                        ProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
+                        LProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
+                        BlockCount += 1
+                    elif Comands[0] == 'G1' or Comands[0] == 'G01':
+                        SecondStr = ''
+                        Key = ''
+                        for simbol in list(Comands[-1]):
+                            if simbol == 'X':
+                                if Key != '':
+                                    if Key == 'X':
+                                        print('ERROR! Line -', line, '\n    X coordinate was set twice...')
+                                        tx = float(SecondStr)
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'X'
+                            elif simbol == 'Y':
+                                if Key != '':
+                                    if Key == 'Y':
+                                        print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'Y'
+                            elif simbol == 'Z':
+                                if Key != '':
+                                    if Key == 'Z':
+                                        print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
+                                        tz = float(SecondStr)
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'Z'
+                            elif simbol == 'F':
+                                if Key == 'X':
+                                    tx = float(SecondStr)
+                                if Key == 'Y':
+                                    ty = float(SecondStr)
+                                if Key == 'Z':
+                                    tz = float(SecondStr)
+                                SecondStr = ''
+                            else:
+                                SecondStr = SecondStr + simbol
+                        FSpeed = float(SecondStr)
+                        SecondStr = ''
+                        lines.append([[x * Mult, y * Mult, z * Mult], ToCoordSpace([tx * Mult, ty * Mult, tz * Mult], CSpace)])
+                        colors.append(G1Color)
+                        thimbs.append(2)
+                        periods.append(period)
+                        BCounts.append(BlockCount)
+                        Coms.append(GLine)
+                        GoOnTimes.append(time)
+                        LGoOnTimes.append(time)
+                        time += Dist3([x, y, z], [tx, ty, tz]) / FSpeed
+                        ProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
+                        LProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
+                        BlockCount += 1
+                    elif Comands[0] == 'G2' or Comands[0] == 'G02':
+                        SecondStr = ''
+                        Key = ''
+                        Cx = x
+                        Cy = y
+                        RadMet = False
+                        for index, simbol in enumerate(list(Comands[-1])):
+                            if simbol == 'X':
+                                if Key != '':
+                                    if Key == 'X':
+                                        print('ERROR! Line -', line, '\n    X coordinate was set twice...')
+                                        tx = float(SecondStr)
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'X'
+                            elif simbol == 'Y':
+                                if Key != '':
+                                    if Key == 'Y':
+                                        print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'Y'
+                            elif simbol == 'Z':
+                                if Key != '':
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    if Key == 'Z':
+                                        print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'Z'
+                            elif simbol == 'I':
+                                if Key != '':
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'I'
+                            elif simbol == 'J':
+                                Cx = x + float(SecondStr)
+                                SecondStr = ''
+                            elif simbol == 'R':
+                                if Key != '':
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                RadMet = True
+                                SecondStr = ''
+                            elif simbol == 'F':
+                                FSpeed = float(Comands[1][index + 1:])
+                                break
+                            else:
+                                SecondStr = SecondStr + simbol
+                        tx, ty, tz = ToCoordSpace([tx, ty, tz], CSpace)
+                        if not RadMet:
+                            Cy = y + float(SecondStr)
+                            SecondStr = ''
+                        else:
+                            Radius = float(SecondStr)
+                            StVector = [tx - x, ty - y]
+                            CP = [x + StVector[0] / 2, y + StVector[1] / 2]
+                            PerpVector = [-StVector[1], StVector[0]]
+                            Cxt, Cyt = MultVect(PerpVector, ((Radius ** 2 - (Dist((0, 0), StVector) / 2) ** 2) ** 0.5) / Dist((0, 0), PerpVector))
                             Cxt += CP[0]
                             Cyt += CP[1]
-                        Cx = Cxt
-                        Cy = Cyt
-                        SecondStr = ''
-                        R1 = abs(Radius)
-                        R2 = abs(Radius)
-                        StepR = 0
-                        #print(Radius)
-                    Angle1 = ToAngle(*(x - Cx, y - Cy))
-                    Angle2 = ToAngle(*(tx - Cx, ty - Cy))
-                    DetDep = int(DeltaAngleRadCW(Angle1, Angle2) / DetStep)
-                    Step = (DeltaAngleRadCW(Angle1, Angle2)) / DetDep
-                    #print(math.degrees(Step * DetDep))
-                    R1 = Dist((x, y), (Cx, Cy))
-                    R2 = Dist((tx, ty), (Cx, Cy))
-                    StepR = (R2 - R1) / DetDep
-                    Pos = [x, y, z]
-                    DeltaTimeSum = 0
-                    ZStep = (tz - z) / DetDep
-                    for i in range(DetDep):
-                        Angle = -Step * i + Angle1
-                        Radius = StepR * i + R1
-                        NextPos = [math.cos(Angle) * Radius + Cx, math.sin(Angle) * Radius + Cy, z + ZStep * i]
-                        lines.append([MultVect(Pos, Mult), MultVect(NextPos, Mult)])
+                            Cx = Cxt
+                            Cy = Cyt
+                            Angle1 = ToAngle(*(x - Cx, y - Cy))
+                            Angle2 = ToAngle(*(tx - Cx, ty - Cy))
+                            Step = (DeltaAngleRadCW(Angle1, Angle2))
+                            #print(math.degrees(Step))
+                            if (Step > math.radians(180) and Radius > 0) or (Step < math.radians(180) and Radius < 0):
+                                Cxt, Cyt = MultVect(MultVect(PerpVector, -1), ((Radius ** 2 - (Dist((0, 0), StVector) / 2) ** 2) ** 0.5) / Dist((0, 0), PerpVector))
+                                Cxt += CP[0]
+                                Cyt += CP[1]
+                            Cx = Cxt
+                            Cy = Cyt
+                            SecondStr = ''
+                            R1 = abs(Radius)
+                            R2 = abs(Radius)
+                            StepR = 0
+                            #print(Radius)
+                        Angle1 = ToAngle(*(x - Cx, y - Cy))
+                        Angle2 = ToAngle(*(tx - Cx, ty - Cy))
+                        DetDep = max(int(DeltaAngleRadCW(Angle1, Angle2) / DetStep), 0.01)
+                        Step = (DeltaAngleRadCW(Angle1, Angle2)) / DetDep
+                        #print(math.degrees(Step * DetDep))
+                        R1 = Dist((x, y), (Cx, Cy))
+                        R2 = Dist((tx, ty), (Cx, Cy))
+                        StepR = (R2 - R1) / DetDep
+                        Pos = [x, y, z]
+                        DeltaTimeSum = 0
+                        ZStep = (tz - z) / DetDep
+                        for i in range(int(DetDep)):
+                            Angle = -Step * i + Angle1
+                            Radius = StepR * i + R1
+                            NextPos = [math.cos(Angle) * Radius + Cx, math.sin(Angle) * Radius + Cy, z + ZStep * i]
+                            lines.append([MultVect(Pos, Mult), MultVect(NextPos, Mult)])
+                            colors.append(G2Color)
+                            thimbs.append(2)
+                            periods.append(period)
+                            BCounts.append(BlockCount)
+                            Coms.append(GLine)
+                            GoOnTimes.append(time)
+                            LGoOnTimes.append(time)
+                            time += Dist3(Pos, NextPos) / FSpeed
+                            LProcessTimes.append(Dist3(Pos, NextPos) / FSpeed)
+                            DeltaTimeSum += Dist3(Pos, NextPos) / FSpeed
+                            Pos = NextPos
+                        lines.append([MultVect(Pos, Mult), MultVect([tx, ty, tz], Mult)])
                         colors.append(G2Color)
                         thimbs.append(2)
                         periods.append(period)
@@ -387,142 +417,142 @@ def read(FileNames):
                         Coms.append(GLine)
                         GoOnTimes.append(time)
                         LGoOnTimes.append(time)
-                        time += Dist3(Pos, NextPos) / FSpeed
-                        LProcessTimes.append(Dist3(Pos, NextPos) / FSpeed)
-                        DeltaTimeSum += Dist3(Pos, NextPos) / FSpeed
-                        Pos = NextPos
-                    lines.append([MultVect(Pos, Mult), MultVect([tx, ty, tz], Mult)])
-                    colors.append(G2Color)
-                    thimbs.append(2)
-                    periods.append(period)
-                    BCounts.append(BlockCount)
-                    Coms.append(GLine)
-                    GoOnTimes.append(time)
-                    LGoOnTimes.append(time)
-                    time += Dist3(Pos, [tx, ty, tz]) / FSpeed
-                    DeltaTimeSum += Dist3(Pos, [tx, ty, tz]) / FSpeed
-                    LProcessTimes.append(Dist3(Pos, [tx, ty, tz]) / FSpeed)
-                    for i in range(DetDep + 1):
-                        ProcessTimes.append(DeltaTimeSum)
-                    BlockCount += 1
-    ##                lines.append([MultVect([x, y, z], Mult), MultVect([tx, ty, tz], Mult)])
-    ##                colors.append((255, 255, 0))
-    ##                thimbs.append(10)
-    ##                lines.append([MultVect([x, y, z], Mult), MultVect([Cx, Cy, tz], Mult)])
-    ##                colors.append((0, 255, 255))
-    ##                thimbs.append(10)
-                elif Comands[0] == 'G3' or Comands[0] == 'G03':
-                    SecondStr = ''
-                    Key = ''
-                    Cx = x
-                    Cy = y
-                    RadMet = False
-                    for index, simbol in enumerate(list(Comands[1])):
-                        if simbol == 'X':
-                            if Key != '':
-                                if Key == 'X':
-                                    print('ERROR! Line -', line, '\n    X coordinate was set twice...')
-                                    tx = float(SecondStr)
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'X'
-                        elif simbol == 'Y':
-                            if Key != '':
-                                if Key == 'Y':
-                                    print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'Y'
-                        elif simbol == 'Z':
-                            if Key != '':
-                                if Key == 'Z':
-                                    print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
-                                    tz = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'Z'
-                        elif simbol == 'I':
-                            if Key != '':
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'I'
-                        elif simbol == 'J':
-                            Cx = x + float(SecondStr)
-                            SecondStr = ''
-                        elif simbol == 'R':
-                            if Key != '':
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                            RadMet = True
-                            SecondStr = ''
-                        elif simbol == 'F':
-                            FSpeed = float(Comands[1][index + 1:])
-                            break
-                        else:
-                            SecondStr = SecondStr + simbol
-                    tx, ty, tz = ToCoordSpace([tx, ty, tz], CSpace)
-                    if not RadMet:
-                        Cy = y + float(SecondStr)
+                        time += Dist3(Pos, [tx, ty, tz]) / FSpeed
+                        DeltaTimeSum += Dist3(Pos, [tx, ty, tz]) / FSpeed
+                        LProcessTimes.append(Dist3(Pos, [tx, ty, tz]) / FSpeed)
+                        for i in range(int(DetDep) + 1):
+                            ProcessTimes.append(DeltaTimeSum)
+                        BlockCount += 1
+        ##                lines.append([MultVect([x, y, z], Mult), MultVect([tx, ty, tz], Mult)])
+        ##                colors.append((255, 255, 0))
+        ##                thimbs.append(10)
+        ##                lines.append([MultVect([x, y, z], Mult), MultVect([Cx, Cy, tz], Mult)])
+        ##                colors.append((0, 255, 255))
+        ##                thimbs.append(10)
+                    elif Comands[0] == 'G3' or Comands[0] == 'G03':
                         SecondStr = ''
-                    else:
-                        Radius = float(SecondStr)
-                        StVector = [tx - x, ty - y]
-                        CP = [x + StVector[0] / 2, y + StVector[1] / 2]
-                        PerpVector = [-StVector[1], StVector[0]]
-                        Cxt, Cyt = MultVect(PerpVector, ((Radius ** 2 - (Dist((0, 0), StVector) / 2) ** 2) ** 0.5) / Dist((0, 0), PerpVector))
-                        Cxt += CP[0]
-                        Cyt += CP[1]
-                        Cx = Cxt
-                        Cy = Cyt
-                        Angle1 = ToAngle(*(x - Cx, y - Cy))
-                        Angle2 = ToAngle(*(tx - Cx, ty - Cy))
-                        Step = (DeltaAngleRadCCW(Angle1, Angle2))
-                        if (Step > math.radians(180) and Radius > 0) or (Step < math.radians(180) and Radius < 0):
-                            Cxt, Cyt = MultVect(MultVect(PerpVector, -1), ((Radius ** 2 - (Dist((0, 0), StVector) / 2) ** 2) ** 0.5) / Dist((0, 0), PerpVector))
+                        Key = ''
+                        Cx = x
+                        Cy = y
+                        RadMet = False
+                        for index, simbol in enumerate(list(Comands[-1])):
+                            if simbol == 'X':
+                                if Key != '':
+                                    if Key == 'X':
+                                        print('ERROR! Line -', line, '\n    X coordinate was set twice...')
+                                        tx = float(SecondStr)
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'X'
+                            elif simbol == 'Y':
+                                if Key != '':
+                                    if Key == 'Y':
+                                        print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'Y'
+                            elif simbol == 'Z':
+                                if Key != '':
+                                    if Key == 'Z':
+                                        print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
+                                        tz = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'Z'
+                            elif simbol == 'I':
+                                if Key != '':
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'I'
+                            elif simbol == 'J':
+                                Cx = x + float(SecondStr)
+                                SecondStr = ''
+                            elif simbol == 'R':
+                                if Key != '':
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                RadMet = True
+                                SecondStr = ''
+                            elif simbol == 'F':
+                                FSpeed = float(Comands[1][index + 1:])
+                                break
+                            else:
+                                SecondStr = SecondStr + simbol
+                        tx, ty, tz = ToCoordSpace([tx, ty, tz], CSpace)
+                        if not RadMet:
+                            Cy = y + float(SecondStr)
+                            SecondStr = ''
+                        else:
+                            Radius = float(SecondStr)
+                            StVector = [tx - x, ty - y]
+                            CP = [x + StVector[0] / 2, y + StVector[1] / 2]
+                            PerpVector = [-StVector[1], StVector[0]]
+                            Cxt, Cyt = MultVect(PerpVector, ((Radius ** 2 - (Dist((0, 0), StVector) / 2) ** 2) ** 0.5) / Dist((0, 0), PerpVector))
                             Cxt += CP[0]
                             Cyt += CP[1]
-                        Cx = Cxt
-                        Cy = Cyt
-                        SecondStr = ''
-                        R1 = abs(Radius)
-                        R2 = abs(Radius)
-                        StepR = 0
-                        #print(Radius)
-                    Angle1 = ToAngle(*(x - Cx, y - Cy))
-                    Angle2 = ToAngle(*(tx - Cx, ty - Cy))
-                    DetDep = int(DeltaAngleRadCCW(Angle1, Angle2) / DetStep)
-                    Step = (DeltaAngleRadCCW(Angle1, Angle2)) / DetDep
-                    R1 = Dist((x, y), (Cx, Cy))
-                    R2 = Dist((tx, ty), (Cx, Cy))
-                    StepR = (R2 - R1) / DetDep
-                    Pos = [x, y, z]
-                    DeltaTimeSum = 0
-                    ZStep = (tz - z) / DetDep
-                    #print(tz)
-                    for i in range(DetDep):
-                        Angle = Step * i + Angle1
-                        Radius = StepR * i + R1
-                        NextPos = [math.cos(Angle) * Radius + Cx, math.sin(Angle) * Radius + Cy, z + ZStep * i]
-                        lines.append([MultVect(Pos, Mult), MultVect(NextPos, Mult)])
+                            Cx = Cxt
+                            Cy = Cyt
+                            Angle1 = ToAngle(*(x - Cx, y - Cy))
+                            Angle2 = ToAngle(*(tx - Cx, ty - Cy))
+                            Step = (DeltaAngleRadCCW(Angle1, Angle2))
+                            if (Step > math.radians(180) and Radius > 0) or (Step < math.radians(180) and Radius < 0):
+                                Cxt, Cyt = MultVect(MultVect(PerpVector, -1), ((Radius ** 2 - (Dist((0, 0), StVector) / 2) ** 2) ** 0.5) / Dist((0, 0), PerpVector))
+                                Cxt += CP[0]
+                                Cyt += CP[1]
+                            Cx = Cxt
+                            Cy = Cyt
+                            SecondStr = ''
+                            R1 = abs(Radius)
+                            R2 = abs(Radius)
+                            StepR = 0
+                            #print(Radius)
+                        Angle1 = ToAngle(*(x - Cx, y - Cy))
+                        Angle2 = ToAngle(*(tx - Cx, ty - Cy))
+                        DetDep = max(int(DeltaAngleRadCCW(Angle1, Angle2) / DetStep), 0.001)
+                        Step = (DeltaAngleRadCCW(Angle1, Angle2)) / DetDep
+                        R1 = Dist((x, y), (Cx, Cy))
+                        R2 = Dist((tx, ty), (Cx, Cy))
+                        StepR = (R2 - R1) / DetDep
+                        Pos = [x, y, z]
+                        DeltaTimeSum = 0
+                        ZStep = (tz - z) / DetDep
+                        #print(tz)
+                        for i in range(int(DetDep)):
+                            Angle = Step * i + Angle1
+                            Radius = StepR * i + R1
+                            NextPos = [math.cos(Angle) * Radius + Cx, math.sin(Angle) * Radius + Cy, z + ZStep * i]
+                            lines.append([MultVect(Pos, Mult), MultVect(NextPos, Mult)])
+                            colors.append(G3Color)
+                            thimbs.append(2)
+                            periods.append(period)
+                            BCounts.append(BlockCount)
+                            Coms.append(GLine)
+                            GoOnTimes.append(time)
+                            LGoOnTimes.append(time)
+                            time += Dist3(Pos, NextPos) / FSpeed
+                            LProcessTimes.append(Dist3(Pos, NextPos) / FSpeed)
+                            DeltaTimeSum += Dist3(Pos, NextPos) / FSpeed
+                            Pos = NextPos
+                        lines.append([MultVect(Pos, Mult), MultVect([tx, ty, tz], Mult)])
                         colors.append(G3Color)
                         thimbs.append(2)
                         periods.append(period)
@@ -530,76 +560,68 @@ def read(FileNames):
                         Coms.append(GLine)
                         GoOnTimes.append(time)
                         LGoOnTimes.append(time)
-                        time += Dist3(Pos, NextPos) / FSpeed
-                        LProcessTimes.append(Dist3(Pos, NextPos) / FSpeed)
-                        DeltaTimeSum += Dist3(Pos, NextPos) / FSpeed
-                        Pos = NextPos
-                    lines.append([MultVect(Pos, Mult), MultVect([tx, ty, tz], Mult)])
-                    colors.append(G3Color)
-                    thimbs.append(2)
-                    periods.append(period)
-                    BCounts.append(BlockCount)
-                    Coms.append(GLine)
-                    GoOnTimes.append(time)
-                    LGoOnTimes.append(time)
-                    time += Dist3(Pos, [tx, ty, tz]) / FSpeed
-                    DeltaTimeSum += Dist3(Pos, [tx, ty, tz]) / FSpeed
-                    LProcessTimes.append(Dist3(Pos, [tx, ty, tz]) / FSpeed)
-                    for i in range(DetDep + 1):
-                        ProcessTimes.append(DeltaTimeSum)
-                    BlockCount += 1
-    ##                lines.append([MultVect([x, y, z], Mult), MultVect([tx, ty, tz], Mult)])
-    ##                colors.append((255, 255, 0))
-    ##                thimbs.append(10)
-    ##                lines.append([MultVect([x, y, z], Mult), MultVect([Cx, Cy, tz], Mult)])
-    ##                colors.append((0, 255, 255))
-    ##                thimbs.append(10)
-                if Comands[0] == 'G10':
-                    SecondStr = ''
-                    Key = ''
-                    for simbol in list(Comands[1]):
-                        if simbol == 'X':
-                            if Key != '':
-                                if Key == 'X':
-                                    print('ERROR! Line -', line, '\n    X coordinate was set twice...')
-                                    tx = float(SecondStr)
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'X'
-                        elif simbol == 'Y':
-                            if Key != '':
-                                if Key == 'Y':
-                                    print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                if Key == 'Z':
-                                    tz = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'Y'
-                        elif simbol == 'Z':
-                            if Key != '':
-                                if Key == 'Z':
-                                    print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
-                                    tz = float(SecondStr)
-                                if Key == 'Y':
-                                    ty = float(SecondStr)
-                                if Key == 'X':
-                                    tx = float(SecondStr)
-                                SecondStr = ''
-                            Key = 'Z'
-                        else:
-                            SecondStr = SecondStr + simbol
-                    if Key == 'X':
-                        tx = float(SecondStr)
-                    if Key == 'Y':
-                        ty = float(SecondStr)
-                    if Key == 'Z':
-                        tz = float(SecondStr)
-                    CSpace = [tx, ty, tx]
+                        time += Dist3(Pos, [tx, ty, tz]) / FSpeed
+                        DeltaTimeSum += Dist3(Pos, [tx, ty, tz]) / FSpeed
+                        LProcessTimes.append(Dist3(Pos, [tx, ty, tz]) / FSpeed)
+                        for i in range(int(DetDep) + 1):
+                            ProcessTimes.append(DeltaTimeSum)
+                        BlockCount += 1
+        ##                lines.append([MultVect([x, y, z], Mult), MultVect([tx, ty, tz], Mult)])
+        ##                colors.append((255, 255, 0))
+        ##                thimbs.append(10)
+        ##                lines.append([MultVect([x, y, z], Mult), MultVect([Cx, Cy, tz], Mult)])
+        ##                colors.append((0, 255, 255))
+        ##                thimbs.append(10)
+                    if Comands[0] == 'G10':
+                        SecondStr = ''
+                        Key = ''
+                        for simbol in list(Comands[-1]):
+                            if simbol == 'X':
+                                if Key != '':
+                                    if Key == 'X':
+                                        print('ERROR! Line -', line, '\n    X coordinate was set twice...')
+                                        tx = float(SecondStr)
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'X'
+                            elif simbol == 'Y':
+                                if Key != '':
+                                    if Key == 'Y':
+                                        print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    if Key == 'Z':
+                                        tz = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'Y'
+                            elif simbol == 'Z':
+                                if Key != '':
+                                    if Key == 'Z':
+                                        print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
+                                        tz = float(SecondStr)
+                                    if Key == 'Y':
+                                        ty = float(SecondStr)
+                                    if Key == 'X':
+                                        tx = float(SecondStr)
+                                    SecondStr = ''
+                                Key = 'Z'
+                            else:
+                                SecondStr = SecondStr + simbol
+                        if Key == 'X':
+                            tx = float(SecondStr)
+                        if Key == 'Y':
+                            ty = float(SecondStr)
+                        if Key == 'Z':
+                            tz = float(SecondStr)
+                        CSpace = [tx, ty, tx]
+                except ValueError:
+                    print('\nWARNING! ' + '-' * 50)
+                    print('Incorrect comand - ' + inp + '\n')
+                    print(end = '')
             x, y, z = ToCoordSpace([tx, ty, tz], CSpace)
             inp = file.readline()
         GlobalText.append(inp)
@@ -697,6 +719,38 @@ def PhreseMesh(pos):
     x, y, z = pos
     return [[[x, y, z], [x + 300, y + 300, z + 2000]], [[x, y, z], [x + 300, y - 300, z + 2000]], [[x, y, z], [x - 300, y - 300, z + 2000]], [[x, y, z], [x - 300, y + 300, z + 2000]], [[x + 300, y + 300, z + 2000], [x + 300, y - 300, z + 2000]], [[x + 300, y - 300, z + 2000], [x - 300, y - 300, z + 2000]], [[x - 300, y - 300, z + 2000], [x - 300, y + 300, z + 2000]], [[x - 300, y + 300, z + 2000], [x + 300, y + 300, z + 2000]]]
 
+def GetDraftTransform(lines, ScreenS, shift):
+    SX = ScreenS[0] - 2 * shift
+    SY = ScreenS[1] - 2 * shift
+    INF = 10 ** 9
+    MinX = INF
+    MaxX = -INF
+    MinY = INF
+    MaxY = -INF
+    for line in lines:
+        for point in line:
+            X, Y = point[:2][::-1]
+            if X > MaxX:
+                MaxX = X
+            if X < MinX:
+                MinX = X
+            if Y > MaxY:
+                MaxY = Y
+            if Y < MinY:
+                MinY = Y
+    if (MaxX - MinX) / SX > (MaxY - MinY) / SY:
+        mult = SX / (MaxX - MinX)
+    else:
+        mult = SY / (MaxY - MinY)
+    Start = [-MinX * mult + shift, -MinY * mult + shift]
+    return [mult, Start]
+
+def SetToSurf(lines, colors, surf, transform):
+    mult, Start = transform
+    for i, line in enumerate(lines):
+        pygame.draw.line(surf, colors[i], [Start[0] + line[0][1] * mult, Start[1] + line[0][0] * mult], [Start[0] + line[1][1] * mult, Start[1] + line[1][0] * mult])
+    return surf
+
 pygame.init()
 KeepGoing = True
 print('\n' * 3 + '-' * 70)
@@ -718,6 +772,11 @@ for string in ProgText:
 #print(LPTimes)
 SCRX = 1000
 SCRY = 700
+SurfView = pygame.Surface([1000, 700])
+SurfViewTransf = GetDraftTransform(lines, [SCRX, SCRY], SHIFT)
+SVMult = SurfViewTransf[0]
+SVPos = SurfViewTransf[1]
+SetToSurf(lines, colors, SurfView, SurfViewTransf)
 try:
     screen = pygame.display.set_mode([SCRX, SCRY])
 except:
@@ -726,7 +785,7 @@ Speed = [0, 0, 0]
 RSpeed = [0, 0, 0]
 ShowI = 0
 clock = pygame.time.Clock()
-tm = time.monotonic()
+tm = timee.monotonic()
 #font = pygame.font.render('arial', 24)
 SwipeR = False
 ColorMode = False
@@ -746,8 +805,10 @@ Controlls = True
 PAnimS = 0
 PAnimT = 0
 ShowPhrese = False
+SurfaceMod = False
 while KeepGoing:
-    TimeMonot = time.monotonic()
+    #print('abc')
+    TimeMonot = timee.monotonic()
     DeltaTime = TimeMonot - tm
     tm = TimeMonot
     screen.fill(BGColor)
@@ -803,6 +864,8 @@ while KeepGoing:
                 MouseSensDiv += 10
             if event.key == pygame.K_PERIOD and MouseSensDiv > 10:
                 MouseSensDiv -= 10
+            if event.key == pygame.K_F3:
+                SurfaceMod = not SurfaceMod
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_w:
                 Speed[0] -= -SPD
@@ -852,16 +915,22 @@ while KeepGoing:
     period = periods[BCs.index(ShowI)]
     #if 0 <= PAnimT + PAnimS * DeltaTime < Time:
     PAnimT = (PAnimT + (PAnimS * DeltaTime) / 60) % Time
-    for i, ln in enumerate(ScreenCoords(ToLocal(CamPos, CamRot, lines), SDist)):
-        if (BCs + [-1])[i] != ShowI:
-            pygame.draw.line(screen, (colors[i] if period == periods[i] or ColorMode else (50, 50, 50)), Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), thimbs[i])
-        else:
-            pygame.draw.line(screen, StepSelectionColor, Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), 5)
-    PhreseLines = PhreseMesh(GetPhresePosition(PAnimT, lines, LGoOnTimes, LPTimes))
-    #print(PhreseLines)
-    if ShowPhrese:
-        for ln in ScreenCoords(ToLocal(CamPos, CamRot, PhreseLines), SDist):
-            pygame.draw.line(screen, (255, 255, 0), Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), 2)
+    #print(len(ScreenCoords(ToLocal(CamPos, CamRot, lines), SDist)))
+    if not SurfaceMod:
+        for i, ln in enumerate(ScreenCoords(ToLocal(CamPos, CamRot, lines), SDist)):
+            #print('abcd')
+            if (BCs + [-1])[i] != ShowI:
+                pygame.draw.line(screen, (colors[i] if period == periods[i] or ColorMode else (50, 50, 50)), Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), thimbs[i])
+            else:
+                pygame.draw.line(screen, StepSelectionColor, Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), 5)
+        PhreseLines = PhreseMesh(GetPhresePosition(PAnimT, lines, LGoOnTimes, LPTimes))
+        #print(PhreseLines)
+        if ShowPhrese:
+            for ln in ScreenCoords(ToLocal(CamPos, CamRot, PhreseLines), SDist):
+                pygame.draw.line(screen, (255, 255, 0), Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), 2)
+    else:
+        screen.blit(SurfView, (0, 0))
+        pygame.draw.circle(screen, StepSelectionColor, [int(SVPos[0] + -CamPos[1] * SVMult), int(SVPos[1] + -CamPos[0] * SVMult)], 5, 5)
     if Inform:
         #screen.fill((0, 0, 255))
         screen.blit(font.render('Distance to screen surface: ' + str(SDist), 0, (255, 255, 255)), [0, 0])
@@ -902,7 +971,7 @@ while KeepGoing:
         screen.blit(font.render('Speed change - [+], [-]                        Phrese animation speed change - [1], [2]', 0, (255, 255, 255)), [0, 60])
         screen.blit(font.render('Step change - [Q], [E]', 0, (255, 255, 255)), [0, 90])
         screen.blit(font.render('Show all models in color mode (On/Off) - [LShift]', 0, (255, 255, 255)), [0, 120])
-        screen.blit(font.render('World information - [F2]', 0, (255, 255, 255)), [0, 150])
+        screen.blit(font.render('World information - [F2]                       2D draft view ON/OFF - [F3]', 0, (255, 255, 255)), [0, 150])
         screen.blit(font.render('Help bar Open/Close - [F1]', 0, (255, 255, 255)), [0, 180])
     pygame.display.update()
     clock.tick(60)
