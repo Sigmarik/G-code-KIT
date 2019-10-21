@@ -161,6 +161,7 @@ def read(FileNames):
             tx, ty, tz = x, y, z
             line += 1
             GLine += 1
+            inp = inp.replace(' ', '')
             for i, simb in enumerate(inp):
                 if (simb not in '1234567890') and simb != 'G':
                     inp = inp[:i] + ' ' + inp[i:]
@@ -727,6 +728,12 @@ def RotateSpeed(spd, rot):
     Answer[0] = -spd[1] * math.cos(rot) + -spd[0] * math.sin(rot)
     return Answer
 
+def RotateLine2D(spd, rot):
+    Answer = list(spd)
+    Answer[1] = -spd[0] * math.cos(rot) + spd[1] * math.sin(rot)
+    Answer[0] = -spd[1] * math.cos(rot) + -spd[0] * math.sin(rot)
+    return Answer
+
 def GetPhresePosition(time, lines, STimes, PTimes):
     Index = 0
     for i in range(len(STimes)):
@@ -831,6 +838,7 @@ while True:
     PAnimT = 0
     ShowPhrese = False
     SurfaceMod = False
+    K = 1
     while KeepGoing:
         #print('abc')
         TimeMonot = timee.monotonic()
@@ -925,9 +933,15 @@ while True:
                     AnimationS -= 1
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 4:
-                    SDist += ScalingSPD
+                    if not SurfaceMod:
+                        SDist += ScalingSPD
+                    else:
+                        K += ScalingSPD / 400
                 if event.button == 5 and SDist > ScalingSPD * 2:
-                    SDist -= ScalingSPD
+                    if not SurfaceMod:
+                        SDist -= ScalingSPD
+                    else:
+                        K -= ScalingSPD / 400
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 SwipeR = True
                 pygame.mouse.get_rel()
@@ -962,10 +976,11 @@ while True:
                     for ln in ScreenCoords(ToLocal(CamPos, CamRot, PhreseLines), SDist):
                         pygame.draw.line(screen, (255, 255, 0), Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), 2)
             else:
-                K = SDist / 400
                 SV = pygame.transform.scale(SurfView, [int(SCRX * K), int(SCRY * K)])
                 screen.blit(SV, [int(-K * (SVPos[0] + -CamPos[1] * SVMult) + SCRX // 2), int(-K * (SVPos[1] + -CamPos[0] * SVMult) + SCRY // 2)])
                 pygame.draw.circle(screen, StepSelectionColor, [int(SCRX // 2), int(SCRY // 2)], 5, 5)
+                DirLine = RotateLine2D([0, 20], -CamRot[2])
+                pygame.draw.line(screen, StepSelectionColor, [int(SCRX // 2), int(SCRY // 2)], [int(DirLine[0] + SCRX // 2), int(DirLine[1] + SCRY // 2)])
             if Inform:
                 #screen.fill((0, 0, 255))
                 screen.blit(font.render('Distance to screen surface: ' + str(SDist), 0, (255, 255, 255)), [0, 0])
