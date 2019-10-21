@@ -135,7 +135,7 @@ def read(FileNames):
         CSpace = [0, 0, 0]
         LastComand = ''
         LastSpeed = 50
-        while not (inp == 'M30' or inp == 'M30\n'):
+        while (not (inp == 'M30' or inp == 'M30\n')) and (GLine - 3 < GlobalLength):
             TimeMon = timee.monotonic()
             DeltaTime = TimeMon - tm
             tm = TimeMon
@@ -648,6 +648,10 @@ def read(FileNames):
                     print(end = '')
             x, y, z = ToCoordSpace([tx, ty, tz], CSpace)
             inp = file.readline()
+        if not (GLine - 3 < GlobalLength):
+            print('\nWARNING! ' + '-' * 50)
+            print('No end comand M30 readed')
+            print('It is not critical, but be carefull...' + '\n')
         GlobalText.append(inp)
     pygame.display.quit()
     return (lines, colors, thimbs, periods, BCounts, Coms, GlobalText, GoOnTimes, ProcessTimes, LGoOnTimes, LProcessTimes, BlockCount, time)
