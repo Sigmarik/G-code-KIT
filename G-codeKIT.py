@@ -885,17 +885,17 @@ def main():
                         exit()
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_w:
-                        Speed[0] -= SPD
+                        Speed[0] -= 1
                     if event.key == pygame.K_s:
-                        Speed[0] += SPD
+                        Speed[0] += 1
                     if event.key == pygame.K_a:
-                        Speed[1] += SPD
+                        Speed[1] += 1
                     if event.key == pygame.K_d:
-                        Speed[1] -= SPD
+                        Speed[1] -= 1
                     if event.key == pygame.K_LCTRL:
-                        Speed[2] += SPD
+                        Speed[2] += 1
                     if event.key == pygame.K_SPACE:
-                        Speed[2] -= SPD
+                        Speed[2] -= 1
                     if event.key == pygame.K_UP:
                         RSpeed[1] -= RSPD
                     if event.key == pygame.K_DOWN:
@@ -939,17 +939,17 @@ def main():
                         SurfaceMod = not SurfaceMod
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_w:
-                        Speed[0] -= -SPD
+                        Speed[0] -= -1
                     if event.key == pygame.K_s:
-                        Speed[0] += -SPD
+                        Speed[0] += -1
                     if event.key == pygame.K_a:
-                        Speed[1] += -SPD
+                        Speed[1] += -1
                     if event.key == pygame.K_d:
-                        Speed[1] -= -SPD
+                        Speed[1] -= -1
                     if event.key == pygame.K_LCTRL:
-                        Speed[2] += -SPD
+                        Speed[2] += -1
                     if event.key == pygame.K_SPACE:
-                        Speed[2] -= -SPD
+                        Speed[2] -= -1
                     if event.key == pygame.K_UP:
                         RSpeed[1] -= -RSPD
                     if event.key == pygame.K_DOWN:
@@ -984,7 +984,7 @@ def main():
                     pygame.mouse.set_visible(True)
             if KeepGoing:
                 RDelta = Summ(MultVect(RSpeed, DeltaTime), RDelta)
-                CamPos = Summ(CamPos, MultVect(RotateSpeed(Speed, -CamRot[2] - PI / 2), DeltaTime))
+                CamPos = Summ(CamPos, MultVect(RotateSpeed(MultVect(Speed, SPD), -CamRot[2] - PI / 2), DeltaTime))
                 CamRot = Summ(CamRot, MultVect(RSpeed, DeltaTime))
                 if SwipeR:
                     MRel = pygame.mouse.get_rel()
