@@ -112,8 +112,18 @@ def read(FileNames):
             fl = open(FileName, 'r')
             GlobalLength += len(fl.read().split('\n'))
         except:
-            print("No file", FileName + '.')
-            input('Press [Enter].')
+            scr = pygame.display.set_mode([450, 150])
+            scr.fill((100, 0, 0))
+            scr.blit(font.render('No file ', 0, (255, 255, 255)), [10, 24])
+            scr.blit(font.render(FileName, 0, (255, 255, 255)), [10, 42])
+            scr.blit(font.render('Close this window to enter file names again', 0, (255, 255, 255)), [10, 60])
+            pygame.display.update()
+            KG = True
+            while KG:
+                for event in pygame.event.get():
+                    if event.type == pygame.K_ESCAPE or event.type == pygame.QUIT:
+                        KG = False
+            pygame.display.quit()
             return 'NoFile'
     print('Your filelength ' + str(GlobalLength) + ' lines. Turn ON simple mode [y/n]')
     if input() == 'y':
@@ -973,7 +983,7 @@ def main():
                         if not SurfaceMod:
                             SDist -= ScalingSPD
                             Change = True
-                        else:
+                        elif K > ScalingSPD / 400:
                             K -= ScalingSPD / 400
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     SwipeR = True
