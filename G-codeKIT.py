@@ -930,6 +930,7 @@ def main():
                         ShowPhrese = True
                     if event.key == pygame.K_LSHIFT:
                         ColorMode = not ColorMode
+                        Change = True
                     if event.key == pygame.K_ESCAPE:
                         KeepGoing = False
                         pygame.display.quit()
