@@ -27,9 +27,9 @@ INF = 10 ** 9
 SPD = 3000
 Mult = 500
 RSPD = 1
-DetStep = 5
+DefDetStep = 5
 SHIFT = 25
-DetStep = math.radians(DetStep)
+DetStep = math.radians(DefDetStep)
 MouseSensDiv = 100
 ScalingSPD = 10
 G0Color, G1Color, G2Color, G3Color, FrameColor, SelectionColor, SelectionTextColor, BGColor, StepSelectionColor, SurfaceMod = LoadConf('GKIT.conf')
@@ -121,7 +121,7 @@ def read(FileNames):
             KG = True
             while KG:
                 for event in pygame.event.get():
-                    if event.type == pygame.K_ESCAPE or event.type == pygame.QUIT:
+                    if (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE) or event.type == pygame.QUIT:
                         KG = False
             pygame.display.quit()
             return 'NoFile'
@@ -129,6 +129,8 @@ def read(FileNames):
     if input() == 'y':
         DetStep = math.radians(90)
         print('Turned ON simple mode')
+    else:
+        DetStep = math.radians(DefDetStep)
     scr = pygame.display.set_mode([450, 150])
     for period, FileName in enumerate(FileNames):
         curr_path = Path('.')
@@ -802,7 +804,8 @@ def GetDraftTransform(lines, ScreenS, shift):
     else:
         mult = SY / (MaxY - MinY)
     Start = [-MinX * mult + shift, -MinY * mult + shift]
-    return [mult, Start]
+    StartPosition = [-(MaxY + MinY) // 2, -(MaxX + MinX) // 2, 0]
+    return [[mult, Start], StartPosition]
 
 def SetToSurf(lines, colors, surf, transform):
     mult, Start = transform
@@ -825,7 +828,8 @@ def main():
     while True:
         KeepGoing = True
         print('Enter names of files to open with format (.gcode, .txt and other) splited by [Space]')
-        result = read(input().split())
+        FileNamesInp = input()
+        result = read(FileNamesInp.split())
         if result != 'NoFile':
             lines, colors, thimbs, periods, BCs, Coms, ProgText, GoOnTimes, PTimes, LGoOnTimes, LPTimes, N, Time = result
         else:
@@ -843,7 +847,7 @@ def main():
             SCRY = 700
             SurfView = pygame.Surface([SCRX, SCRY])
             LastFrame = pygame.Surface([SCRX, SCRY])
-            SurfViewTransf = GetDraftTransform(lines, [SCRX, SCRY], SHIFT)
+            SurfViewTransf, CamPos = GetDraftTransform(lines, [SCRX, SCRY], SHIFT)
             SVMult = SurfViewTransf[0]
             SVPos = SurfViewTransf[1]
             SetToSurf(lines, colors, SurfView, SurfViewTransf)
@@ -881,6 +885,7 @@ def main():
             Change = True
         while KeepGoing:
             #print('abc')
+            Screenshot = False
             TimeMonot = timee.monotonic()
             DeltaTime = TimeMonot - tm
             tm = TimeMonot
@@ -942,6 +947,8 @@ def main():
                         Inform = not Inform
                     if event.key == pygame.K_F1:
                         Controlls = not Controlls
+                    if event.key == pygame.K_F12:
+                        Screenshot = True
                     if event.key == pygame.K_COMMA:
                         MouseSensDiv += 10
                     if event.key == pygame.K_PERIOD and MouseSensDiv > 10:
@@ -1063,11 +1070,18 @@ def main():
                     screen.blit(font.render('Moving - WASD, [LCtrl], [Space]                Zoom - [Mouse wheel Up/Down]', 0, (255, 255, 255)), [0, 0])
                     screen.blit(font.render('Rotation - [Arrows] or [Mouse]                 Mous sensitive change - [,], [.]', 0, (255, 255, 255)), [0, 30])
                     screen.blit(font.render('Speed change - [+], [-]                        Phrese animation speed change - [1], [2]', 0, (255, 255, 255)), [0, 60])
-                    screen.blit(font.render('Step change - [Q], [E]', 0, (255, 255, 255)), [0, 90])
+                    screen.blit(font.render('Step change - [Q], [E]                         Screenshot - [F12]', 0, (255, 255, 255)), [0, 90])
                     screen.blit(font.render('Show all models in color mode (On/Off) - [LShift]', 0, (255, 255, 255)), [0, 120])
                     screen.blit(font.render('World information - [F2]                       2D draft view ON/OFF - [F3]', 0, (255, 255, 255)), [0, 150])
                     screen.blit(font.render('Help bar Open/Close - [F1]', 0, (255, 255, 255)), [0, 180])
                 pygame.display.update()
+                if Screenshot:
+                    pygame.image.save(screen, FileNamesInp.replace('.', '~').replace(' ', '_') + str(int(timee.time())) + ".png")
+                    screen.fill((255, 255, 255))
+                    TTM = timee.monotonic()
+                    pygame.display.update()
+                    while timee.monotonic() - TTM < 0.1:
+                        ksjdnfckjdandkfnaskndskn = 0
                 clock.tick(60)
     pygame.quit()
 main()
