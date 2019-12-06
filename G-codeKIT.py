@@ -9,8 +9,25 @@ from pathlib import Path
 
 PI = 3.1415926535
 
+DConfText = """G0 - 255 0 0
+G1 - 0 0 255
+G2 - 0 255 0
+G3 - 128 255 0
+Program text frame color - 0 0 255
+Selected string border color - 255 255 0
+selected text color - 0 0 0
+Background - 0 0 0
+Step selection color - 255 255 255
+2D view first = True"""
+
 def LoadConf(ConfName):
-    file = open(ConfName, 'r')
+    try:
+        file = open(ConfName, 'r')
+    except:
+        fl = open(ConfName, 'w')
+        fl.write(DConfText)
+        fl.close()
+        file = open(ConfName, 'r')
     N = 9
     colors = []
     for i in range(N):
@@ -79,7 +96,7 @@ def DeltaAngleRadCCW(A2, A1):
         return math.radians(360)
 
 def ToSeconds(minutes):
-    return str(int(minutes)) + ' minutes ' + str(int((minutes - int(minutes)) * 6000) / 100) + ' seconds'
+    return str(int(minutes)) + ' минут ' + str(int((minutes - int(minutes)) * 6000) / 100) + ' секунд'
 
 def read(FileNames):
     global DetStep
@@ -99,9 +116,12 @@ def read(FileNames):
     GLine = -1
     TimeS = 0.01
     tm = timee.monotonic()
-    if hasattr(sys, '_MEIPASS'):
+    warnings = 0
+    errors = 0
+    log = open('LOG.txt', 'w')
+    if hasattr(sys, '_MEIPASS') or True:
         #print('Record')
-        font = os.path.join('arial.otf')
+        font = open('arial.otf', 'r')
         font = pygame.font.Font(font, 12)
         IsEXE = True
     else:
@@ -114,9 +134,9 @@ def read(FileNames):
         except:
             scr = pygame.display.set_mode([450, 150])
             scr.fill((100, 0, 0))
-            scr.blit(font.render('No file ', 0, (255, 255, 255)), [10, 24])
+            scr.blit(font.render('Не найден файл ', 0, (255, 255, 255)), [10, 24])
             scr.blit(font.render(FileName, 0, (255, 255, 255)), [10, 42])
-            scr.blit(font.render('Close this window to enter file names again', 0, (255, 255, 255)), [10, 60])
+            scr.blit(font.render('Закройте это окно чтобы повторно ввести названия файлов', 0, (255, 255, 255)), [10, 60])
             pygame.display.update()
             KG = True
             while KG:
@@ -125,14 +145,15 @@ def read(FileNames):
                         KG = False
             pygame.display.quit()
             return 'NoFile'
-    print('Your filelength ' + str(GlobalLength) + ' lines. Turn ON simple mode [y/n]')
+    print('Длина вашего файла составляет ' + str(GlobalLength) + ' строк. Включить режим простой отрисовки? [y/n]')
     if input() == 'y':
         DetStep = math.radians(90)
-        print('Turned ON simple mode')
+        print('Включён режим простой отрисовки')
     else:
         DetStep = math.radians(DefDetStep)
     scr = pygame.display.set_mode([450, 150])
     for period, FileName in enumerate(FileNames):
+        print('Обрабатывается файл', FileName, '-' * 100, file = log)
         curr_path = Path('.')
         file = open(FileName, 'r')
         x, y, z = (0, 0, 20)
@@ -161,8 +182,8 @@ def read(FileNames):
             pygame.draw.rect(scr, (0, 255, 0), [14, 54, 422 * percent, 42])
             scr.blit(font.render(str(int(percent * 100)) + '%', 0, (255, 255, 255)), [10, 10])
             #print((1 - percent) / PercentSpeed)
-            scr.blit(font.render('Time - ' + str((1 - percent) / PercentSpeed) + ' s      Time left ' + str(int(TimeS)) + ' s', 0, (255, 255, 255)), [10, 24])
-            scr.blit(font.render('Loading file ' + FileName, 0, (255, 255, 255)), [10, 112])
+            scr.blit(font.render('Осталось ' + str(int((1 - percent) / PercentSpeed)) + ' секунд      Прошло ' + str(int(TimeS)) + ' секунд', 0, (255, 255, 255)), [10, 24])
+            scr.blit(font.render('Загружается файл ' + FileName, 0, (255, 255, 255)), [10, 112])
             scr.blit(font.render(inp[:-1], 0, (255, 255, 255)), [10, 130])
             pygame.display.update()
             GlobalText.append(inp)
@@ -180,9 +201,10 @@ def read(FileNames):
                 try:
                     if Comands[0][0] in 'XYZ':
                         IsIncorrect = True
-                        print('\nWARNING! ' + '-' * 50)
-                        print('Comand arguments without comand - ' + inp)
-                        print('It may be comand ' + LastComand + '\n')
+                        print('\nПРЕДУПРЕЖДЕНИЕ! ' + '-' * 50, file = log)
+                        print('Не указана команда в строке ' + str(line) + ' - ' + inp, file = log)
+                        print('Команда считана как ' + LastComand + '\n', file = log)
+                        warnings += 1
                         Comands.append(LastComand)
                         Comands = Comands[::-1]
                     else:
@@ -195,7 +217,8 @@ def read(FileNames):
                             if simbol == 'X':
                                 if Key != '':
                                     if Key == 'X':
-                                        print('ERROR! Line -', line, '\n    X coordinate was set twice...')
+                                        print('\nПРЕДУПРЕЖДЕНИЕ! Строка', line, '\n    X координата была указана дважды\n', file = log)
+                                        warnings += 1
                                         tx = float(SecondStr)
                                     if Key == 'Y':
                                         ty = float(SecondStr)
@@ -206,7 +229,8 @@ def read(FileNames):
                             elif simbol == 'Y':
                                 if Key != '':
                                     if Key == 'Y':
-                                        print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
+                                        print('\nПРЕДУПРЕЖДЕНИЕ! Строка', line, '\n    Y координата была указана дважды\n', file = log)
+                                        warnings += 1
                                         ty = float(SecondStr)
                                     if Key == 'X':
                                         tx = float(SecondStr)
@@ -217,7 +241,8 @@ def read(FileNames):
                             elif simbol == 'Z':
                                 if Key != '':
                                     if Key == 'Z':
-                                        print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
+                                        print('\nПРЕДУПРЕЖДЕНИЕ! Строка', line, '\n    Z координата была указана дважды\n', file = log)
+                                        warnings += 1
                                         tz = float(SecondStr)
                                     if Key == 'Y':
                                         ty = float(SecondStr)
@@ -254,7 +279,8 @@ def read(FileNames):
                             if simbol == 'X':
                                 if Key != '':
                                     if Key == 'X':
-                                        print('ERROR! Line -', line, '\n    X coordinate was set twice...')
+                                        print('\nПРЕДУПРЕЖДЕНИЕ! Строка', line, '\n    X координата была указана дважды\n', file = log)
+                                        warnings += 1
                                         tx = float(SecondStr)
                                     if Key == 'Y':
                                         ty = float(SecondStr)
@@ -265,7 +291,8 @@ def read(FileNames):
                             elif simbol == 'Y':
                                 if Key != '':
                                     if Key == 'Y':
-                                        print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
+                                        print('\nПРЕДУПРЕЖДЕНИЕ! Строка', line, '\n    Y координата была указана дважды\n', file = log)
+                                        warnings += 1
                                         ty = float(SecondStr)
                                     if Key == 'X':
                                         tx = float(SecondStr)
@@ -276,7 +303,8 @@ def read(FileNames):
                             elif simbol == 'Z':
                                 if Key != '':
                                     if Key == 'Z':
-                                        print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
+                                        print('\nПРЕДУПРЕЖДЕНИЕ! Строка', line, '\n    Z координата была указана дважды\n', file = log)
+                                        warnings += 1
                                         tz = float(SecondStr)
                                     if Key == 'Y':
                                         ty = float(SecondStr)
@@ -316,8 +344,14 @@ def read(FileNames):
                         ProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
                         LProcessTimes.append(Dist3([x, y, z], [tx, ty, tz]) / FSpeed)
                         BlockCount += 1
-                    elif Comands[0] == 'G2' or Comands[0] == 'G02' or (IsIncorrect and (LastComand == 'G2')):
-                        LastComand = 'G2'
+                    elif Comands[0] == 'G2' or Comands[0] == 'G02' or (IsIncorrect and (LastComand == 'G2')) or Comands[0] == 'G3' or Comands[0] == 'G03' or (IsIncorrect and (LastComand == 'G3')):
+                        G2 = False
+                        if (Comands[0] == 'G2' or Comands[0] == 'G02' or (IsIncorrect and (LastComand == 'G2'))):
+                            LastComand = 'G2'
+                            G2 = True
+                        else:
+                            LastComand = 'G3'
+                            G2 = False
                         SecondStr = ''
                         Key = ''
                         Cx = x
@@ -327,7 +361,8 @@ def read(FileNames):
                             if simbol == 'X':
                                 if Key != '':
                                     if Key == 'X':
-                                        print('ERROR! Line -', line, '\n    X coordinate was set twice...')
+                                        print('\nПРЕДУПРЕЖДЕНИЕ! Строка', line, '\n    X координата была указана дважды\n', file = log)
+                                        warnings += 1
                                         tx = float(SecondStr)
                                     if Key == 'Y':
                                         ty = float(SecondStr)
@@ -338,7 +373,8 @@ def read(FileNames):
                             elif simbol == 'Y':
                                 if Key != '':
                                     if Key == 'Y':
-                                        print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
+                                        print('\nПРЕДУПРЕЖДЕНИЕ! Строка', line, '\n    Y координата была указана дважды\n', file = log)
+                                        warnings += 1
                                         ty = float(SecondStr)
                                     if Key == 'X':
                                         tx = float(SecondStr)
@@ -353,7 +389,8 @@ def read(FileNames):
                                     if Key == 'X':
                                         tx = float(SecondStr)
                                     if Key == 'Z':
-                                        print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
+                                        print('\nПРЕДУПРЕЖДЕНИЕ! Строка', line, '\n    Z координата была указана дважды\n', file = log)
+                                        warnings += 1
                                         tz = float(SecondStr)
                                     SecondStr = ''
                                 Key = 'Z'
@@ -403,7 +440,6 @@ def read(FileNames):
                             Angle1 = ToAngle(x - Cx, y - Cy)
                             Angle2 = ToAngle(tx - Cx, ty - Cy)
                             Step = (DeltaAngleRadCW(Angle1, Angle2))
-                            #print(math.degrees(Step))
                             if (Step > math.radians(180) and Radius > 0) or (Step < math.radians(180) and Radius < 0):
                                 Cxt, Cyt = MultVect(MultVect(PerpVector, -1), (math.sqrt(Radius * Radius - TimedVar * TimedVar)) / Dist((0, 0), PerpVector))
                                 Cxt += CP[0]
@@ -416,8 +452,12 @@ def read(FileNames):
                             StepR = 0
                         Angle1 = ToAngle(x - Cx, y - Cy)
                         Angle2 = ToAngle(tx - Cx, ty - Cy)
-                        DetDep = max(int(DeltaAngleRadCW(Angle1, Angle2) / DetStep), 0.01)
-                        Step = (DeltaAngleRadCW(Angle1, Angle2)) / DetDep
+                        if G2:
+                            DetDep = max(int(DeltaAngleRadCW(Angle1, Angle2) / DetStep), 0.01)
+                            Step = (DeltaAngleRadCW(Angle1, Angle2)) / DetDep
+                        else:
+                            DetDep = max(int(DeltaAngleRadCCW(Angle1, Angle2) / DetStep), 0.01)
+                            Step = (DeltaAngleRadCCW(Angle1, Angle2)) / DetDep
                         R1 = Dist((x, y), (Cx, Cy))
                         R2 = Dist((tx, ty), (Cx, Cy))
                         StepR = (R2 - R1) / DetDep
@@ -425,11 +465,17 @@ def read(FileNames):
                         DeltaTimeSum = 0
                         ZStep = (tz - z) / DetDep
                         for i in range(int(DetDep)):
-                            Angle = -Step * i + Angle1
+                            if G2:
+                                Angle = -Step * i + Angle1
+                            else:
+                                Angle = Step * i + Angle1
                             Radius = StepR * i + R1
                             NextPos = [math.cos(Angle) * Radius + Cx, math.sin(Angle) * Radius + Cy, z + ZStep * i]
                             lines.append([MultVect(Pos, Mult), MultVect(NextPos, Mult)])
-                            colors.append(G2Color)
+                            if G2:
+                                colors.append(G2Color)
+                            else:
+                                colors.append(G3Color)
                             thimbs.append(2)
                             periods.append(period)
                             BCounts.append(BlockCount)
@@ -454,165 +500,15 @@ def read(FileNames):
                         for i in range(int(DetDep) + 1):
                             ProcessTimes.append(DeltaTimeSum)
                         BlockCount += 1
-        ##                lines.append([MultVect([x, y, z], Mult), MultVect([tx, ty, tz], Mult)])
-        ##                colors.append((255, 255, 0))
-        ##                thimbs.append(10)
-        ##                lines.append([MultVect([x, y, z], Mult), MultVect([Cx, Cy, tz], Mult)])
-        ##                colors.append((0, 255, 255))
-        ##                thimbs.append(10)
-                    elif Comands[0] == 'G3' or Comands[0] == 'G03' or (IsIncorrect and (LastComand == 'G3')):
-                        LastComand = 'G3'
-                        SecondStr = ''
-                        Key = ''
-                        Cx = x
-                        Cy = y
-                        RadMet = False
-                        for index, simbol in enumerate(list(Comands[-1])):
-                            if simbol == 'X':
-                                if Key != '':
-                                    if Key == 'X':
-                                        print('ERROR! Line -', line, '\n    X coordinate was set twice...')
-                                        tx = float(SecondStr)
-                                    if Key == 'Y':
-                                        ty = float(SecondStr)
-                                    if Key == 'Z':
-                                        tz = float(SecondStr)
-                                    SecondStr = ''
-                                Key = 'X'
-                            elif simbol == 'Y':
-                                if Key != '':
-                                    if Key == 'Y':
-                                        print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
-                                        ty = float(SecondStr)
-                                    if Key == 'X':
-                                        tx = float(SecondStr)
-                                    if Key == 'Z':
-                                        tz = float(SecondStr)
-                                    SecondStr = ''
-                                Key = 'Y'
-                            elif simbol == 'Z':
-                                if Key != '':
-                                    if Key == 'Z':
-                                        print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
-                                        tz = float(SecondStr)
-                                    if Key == 'X':
-                                        tx = float(SecondStr)
-                                    if Key == 'Y':
-                                        ty = float(SecondStr)
-                                    SecondStr = ''
-                                Key = 'Z'
-                            elif simbol == 'I':
-                                if Key != '':
-                                    if Key == 'Y':
-                                        ty = float(SecondStr)
-                                    if Key == 'X':
-                                        tx = float(SecondStr)
-                                    if Key == 'Z':
-                                        tz = float(SecondStr)
-                                    SecondStr = ''
-                                Key = 'I'
-                            elif simbol == 'J':
-                                Cx = x + float(SecondStr)
-                                SecondStr = ''
-                            elif simbol == 'R':
-                                if Key != '':
-                                    if Key == 'Y':
-                                        ty = float(SecondStr)
-                                    if Key == 'X':
-                                        tx = float(SecondStr)
-                                    if Key == 'Z':
-                                        tz = float(SecondStr)
-                                RadMet = True
-                                SecondStr = ''
-                            elif simbol == 'F':
-                                FSpeed = float(Comands[1][index + 1:])
-                                break
-                            else:
-                                SecondStr = SecondStr + simbol
-                        tx, ty, tz = ToCoordSpace([tx, ty, tz], CSpace)
-                        if not RadMet:
-                            Cy = y + float(SecondStr)
-                            SecondStr = ''
-                        else:
-                            Radius = float(SecondStr)
-                            StVector = [tx - x, ty - y]
-                            CP = [x + StVector[0] / 2, y + StVector[1] / 2]
-                            PerpVector = [-StVector[1], StVector[0]]
-                            TimedVar = Dist((0, 0), StVector) / 2
-                            Cxt, Cyt = MultVect(PerpVector, (math.sqrt(Radius * Radius - TimedVar * TimedVar)) / Dist((0, 0), PerpVector))
-                            Cxt += CP[0]
-                            Cyt += CP[1]
-                            Cx = Cxt
-                            Cy = Cyt
-                            Angle1 = ToAngle(x - Cx, y - Cy)
-                            Angle2 = ToAngle(tx - Cx, ty - Cy)
-                            Step = (DeltaAngleRadCCW(Angle1, Angle2))
-                            if (Step > math.radians(180) and Radius > 0) or (Step < math.radians(180) and Radius < 0):
-                                Cxt, Cyt = MultVect(MultVect(PerpVector, -1), (math.sqrt(Radius * Radius - TimedVar * TimedVar)) / Dist((0, 0), PerpVector))
-                                Cxt += CP[0]
-                                Cyt += CP[1]
-                            Cx = Cxt
-                            Cy = Cyt
-                            SecondStr = ''
-                            R1 = abs(Radius)
-                            R2 = abs(Radius)
-                            StepR = 0
-                            #print(Radius)
-                        Angle1 = ToAngle(x - Cx, y - Cy)
-                        Angle2 = ToAngle(tx - Cx, ty - Cy)
-                        DetDep = max(int(DeltaAngleRadCCW(Angle1, Angle2) / DetStep), 0.001)
-                        Step = (DeltaAngleRadCCW(Angle1, Angle2)) / DetDep
-                        R1 = Dist((x, y), (Cx, Cy))
-                        R2 = Dist((tx, ty), (Cx, Cy))
-                        StepR = (R2 - R1) / DetDep
-                        Pos = [x, y, z]
-                        DeltaTimeSum = 0
-                        ZStep = (tz - z) / DetDep
-                        #print(tz)
-                        for i in range(int(DetDep)):
-                            Angle = Step * i + Angle1
-                            Radius = StepR * i + R1
-                            NextPos = [math.cos(Angle) * Radius + Cx, math.sin(Angle) * Radius + Cy, z + ZStep * i]
-                            lines.append([MultVect(Pos, Mult), MultVect(NextPos, Mult)])
-                            colors.append(G3Color)
-                            thimbs.append(2)
-                            periods.append(period)
-                            BCounts.append(BlockCount)
-                            Coms.append(GLine)
-                            GoOnTimes.append(time)
-                            LGoOnTimes.append(time)
-                            time += Dist3(Pos, NextPos) / FSpeed
-                            LProcessTimes.append(Dist3(Pos, NextPos) / FSpeed)
-                            DeltaTimeSum += Dist3(Pos, NextPos) / FSpeed
-                            Pos = NextPos
-                        lines.append([MultVect(Pos, Mult), MultVect([tx, ty, tz], Mult)])
-                        colors.append(G3Color)
-                        thimbs.append(2)
-                        periods.append(period)
-                        BCounts.append(BlockCount)
-                        Coms.append(GLine)
-                        GoOnTimes.append(time)
-                        LGoOnTimes.append(time)
-                        time += Dist3(Pos, [tx, ty, tz]) / FSpeed
-                        DeltaTimeSum += Dist3(Pos, [tx, ty, tz]) / FSpeed
-                        LProcessTimes.append(Dist3(Pos, [tx, ty, tz]) / FSpeed)
-                        for i in range(int(DetDep) + 1):
-                            ProcessTimes.append(DeltaTimeSum)
-                        BlockCount += 1
-        ##                lines.append([MultVect([x, y, z], Mult), MultVect([tx, ty, tz], Mult)])
-        ##                colors.append((255, 255, 0))
-        ##                thimbs.append(10)
-        ##                lines.append([MultVect([x, y, z], Mult), MultVect([Cx, Cy, tz], Mult)])
-        ##                colors.append((0, 255, 255))
-        ##                thimbs.append(10)
-                    if Comands[0] == 'G10':
+                    if Comands[0] == 'G10' or False:
                         SecondStr = ''
                         Key = ''
                         for simbol in list(Comands[-1]):
                             if simbol == 'X':
                                 if Key != '':
                                     if Key == 'X':
-                                        print('ERROR! Line -', line, '\n    X coordinate was set twice...')
+                                        print('\nПРЕДУПРЕЖДЕНИЕ! Строка', line, '\n    X координата была указана дважды\n', file = log)
+                                        warnings += 1
                                         tx = float(SecondStr)
                                     if Key == 'Y':
                                         ty = float(SecondStr)
@@ -623,7 +519,8 @@ def read(FileNames):
                             elif simbol == 'Y':
                                 if Key != '':
                                     if Key == 'Y':
-                                        print('ERROR! Line -', line, '\n    Y coordinate was set twice...')
+                                        print('\nПРЕДУПРЕЖДЕНИЕ! Строка', line, '\n    Y координата была указана дважды\n', file = log)
+                                        warnings += 1
                                         ty = float(SecondStr)
                                     if Key == 'X':
                                         tx = float(SecondStr)
@@ -634,7 +531,8 @@ def read(FileNames):
                             elif simbol == 'Z':
                                 if Key != '':
                                     if Key == 'Z':
-                                        print('ERROR! Line -', line, '\n    Z coordinate was set twice...')
+                                        print('\nПРЕДУПРЕЖДЕНИЕ! Строка', line, '\n    Z координата была указана дважды\n', file = log)
+                                        warnings += 1
                                         tz = float(SecondStr)
                                     if Key == 'Y':
                                         ty = float(SecondStr)
@@ -652,15 +550,15 @@ def read(FileNames):
                             tz = float(SecondStr)
                         CSpace = [tx, ty, tx]
                 except ValueError:
-                    print('\nWARNING! ' + '-' * 50)
-                    print('Incorrect comand - ' + inp + '\n')
+                    print('\nПРЕДУПРЕЖДЕНИЕ! ' + '-' * 50, file = log)
+                    print('Некорректная команда на строке ' + str(line) + ' ' + inp + '\n', file = log)
                     print(end = '')
             x, y, z = ToCoordSpace([tx, ty, tz], CSpace)
             inp = file.readline()
         if not (GLine - 3 < GlobalLength):
-            print('\nWARNING! ' + '-' * 50)
-            print('No end comand M30 readed')
-            print('It is not critical, but be carefull...' + '\n')
+            print('\nПРЕДУПРЕЖДЕНИЕ! ' + '-' * 50, file = log)
+            print('Код не заканчивается командой M30', file = log)
+            print('Это не критично, но надо быть осторожнее...' + '\n', file = log)
         GlobalText.append(inp)
     pygame.display.quit()
     return (lines, colors, thimbs, periods, BCounts, Coms, GlobalText, GoOnTimes, ProcessTimes, LGoOnTimes, LProcessTimes, BlockCount, time)
@@ -672,8 +570,8 @@ def ToAngle(x, y):
     return math.atan2(y, x)
 
 def Rotate(x, y, deg):
-    ln = Dist([0, 0], [x, y])
-    A = ToAngle(x, y) #OK
+    ln = math.sqrt(x * x + y * y)
+    A = math.atan2(y, x)
     X = math.sin(A + deg) * ln
     Y = math.cos(A + deg) * ln
     return [X, Y]
@@ -681,54 +579,53 @@ def Rotate(x, y, deg):
 def RotateAll(CPost, CRot, lines):
     Answer = []
     CPos = [0, 0, 0]
+    multer = MultVect(CPos, -1)
     for line in lines:
-        CPos = [0, 0, 0]
         default = [Summ(line[0], CPos), Summ(line[1], CPos)]
-        #default = list(line)
         for point in default:
             point[0], point[1] = Rotate(point[1], point[0], CRot[2])
             point[2], point[0] = Rotate(point[0], point[2], CRot[1])
-        multer = MultVect(CPos, -1)
         default = [Summ(default[0], multer), Summ(default[1], multer)]
         Answer.append(default)
     return Answer
 
 def ToLocal(CPosT, CRot, lines):
-    #lines = list(lns)
     Answer = []
     CPos = list(CPosT)
     CPos[0], CPos[1] = Rotate(CPos[1], CPos[0], CRot[2])
     CPos[2], CPos[0] = Rotate(CPos[0], CPos[2], CRot[1])
     for line in lines:
         default = [Summ(CPos, line[0]), Summ(CPos, line[1])]
-##        for point in default:
-##            #point[1], point[2] = Rotate(point[1], point[2], CRot[0])
-##            point[0], point[1] = Rotate(point[0], point[1], CRot[2])
-##            point[2], point[0] = Rotate(point[2], point[0], CRot[1])
         Answer.append(default)
     return Answer
 
 def ScreenCoords(lines, ScrDist):
     global INF
     Answer = []
-    for i, line in enumerate(lines):
-        if not(line[0][0] < ScrDist and line[1][0] < ScrDist):
+    IsKalcked = False
+    for i in range(len(lines)):
+        line = lines[i]
+        if not((line[0][0] < ScrDist and line[1][0] < ScrDist) or (2 * Dist3(line[0], line[1]) / (Dist3(line[0], [0, 0, 0]) + Dist3(line[1], [0, 0, 0])) < 0.001)):
             if line[0][0] > ScrDist and line[1][0] > ScrDist:
-                if line[0][0] != 0:
-                    KY1 = line[0][1] / line[0][0]
-                    KZ1 = line[0][2] / line[0][0]
+                if not(IsKalcked):
+                    if line[0][0] != 0:
+                        KY1 = line[0][1] / line[0][0]
+                        KZ1 = line[0][2] / line[0][0]
+                    else:
+                        KY1 = line[0][1] / 0.01
+                        KZ1 = line[0][2] / 0.01
                 else:
-                    KY1 = line[0][1] / 0.01
-                    KZ1 = line[0][2] / 0.01
+                    KY1 = KY2
+                    KZ1 = KZ2
                 if line[1][0] != 0:
                     KY2 = line[1][1] / line[1][0]
                     KZ2 = line[1][2] / line[1][0]
                 else:
                     KY2 = line[1][1] / 0.01
                     KZ2 = line[1][2] / 0.01
-                Answer.append([[KY1 * ScrDist, KZ1 * ScrDist], [KY2 * ScrDist, KZ2 * ScrDist]])
+                Answer.append([[KY1 * ScrDist, KZ1 * ScrDist], [KY2 * ScrDist, KZ2 * ScrDist], i])
+                IsKalcked = True
             else:
-                #print('Apcho!')
                 if line[0][0] < ScrDist:
                     Point = line[1]
                 else:
@@ -745,9 +642,10 @@ def ScreenCoords(lines, ScrDist):
                 kZ = (line[0][2] - line[1][2]) / (line[0][0] - line[1][0] if line[0][0] - line[1][0] != 0 else 0.01)
                 bZ = line[1][2] - line[1][0] * kZ
                 ZZ = kZ * ScrDist + bZ
-                Answer.append([[KY1 * ScrDist, KZ1 * ScrDist], [YY, ZZ]])
+                Answer.append([[KY1 * ScrDist, KZ1 * ScrDist], [YY, ZZ], i])
+                IsKalcked = False
         else:
-            Answer.append([[-INF, -INF], [-INF, -INF]])
+            IsKalcked = False
     return Answer
 
 def Centrix(coord, SCRX, SCRY):
@@ -771,8 +669,6 @@ def GetPhresePosition(time, lines, STimes, PTimes):
         if STimes[i] <= time < STimes[i] + PTimes[i]:
             Index = i
     Shift = MultVect([lines[Index][1][0] - lines[Index][0][0], lines[Index][1][1] - lines[Index][0][1], lines[Index][1][2] - lines[Index][0][2]], (time - STimes[Index]) / PTimes[Index])
-##    if (time - STimes[Index]) / PTimes[i] > 1:
-##        print((time - STimes[Index]) / PTimes[i])
     Pos = [lines[Index][0][0] + Shift[0], lines[Index][0][1] + Shift[1], lines[Index][0][2] + Shift[2]]
     return Pos
 
@@ -818,16 +714,16 @@ def main():
     pygame.init()
     KeepGoing = True
     print('\n' * 3 + '-' * 70)
-    print('G-code KIT, G-code viewer by Kudryashov Ilya')
-    print('Default settings:')
-    print('Movement speed -', SPD)
-    print('Keyboard rotation speed -', RSPD)
-    print('Mouse sensitive -', 1 / MouseSensDiv)
-    print('Curve detalisation step angle -', DetStep)
+    print('Визуализатор G-кода')
+    print('Настройки по умолчанию:')
+    print('Скорость передвижения -', SPD)
+    print('Скорость вращения -', RSPD)
+    print('Чувствительность мыши -', 1 / MouseSensDiv)
+    print('Угол наклона кривых -', DetStep)
     print('\n' * 5)
     while True:
         KeepGoing = True
-        print('Enter names of files to open with format (.gcode, .txt and other) splited by [Space]')
+        print('Введите имена файлов с указанием формата (.gcode, .txt и другие), разделяя их пробелом.')
         FileNamesInp = input()
         result = read(FileNamesInp.split())
         if result != 'NoFile':
@@ -854,7 +750,7 @@ def main():
             try:
                 screen = pygame.display.set_mode([SCRX, SCRY])
             except:
-                print('Screen ERROR --------------------------------------------------------------')
+                print('Ошибка создания экрана --------------------------------------------------------------')
             Speed = [0, 0, 0]
             RSpeed = [0, 0, 0]
             ShowI = 0
@@ -867,9 +763,9 @@ def main():
             AnimTimer = 0
             Inform = False
             font = None
-            if hasattr(sys, '_MEIPASS'):
+            if hasattr(sys, '_MEIPASS') or True:
                 #print('Record')
-                font = os.path.join('arial.otf')
+                font = open('arial.otf', 'r')
                 font = pygame.font.Font(font, 12)
                 IsEXE = True
             else:
@@ -894,7 +790,7 @@ def main():
                 if event.type == pygame.QUIT:
                     KeepGoing = False
                     pygame.display.quit()
-                    print('Exit from program or load new file? [load / exit]')
+                    print('Выйти из программы или загрузить новый файл? [load / exit] (exit - выйти, load - загрузить)')
                     if input() == 'exit':
                         pygame.quit()
                         exit()
@@ -939,7 +835,7 @@ def main():
                     if event.key == pygame.K_ESCAPE:
                         KeepGoing = False
                         pygame.display.quit()
-                        print('Exit from program or load new file? [load / exit]')
+                        print('Выйти из программы или загрузить новый файл? [load / exit] (exit - выйти, load - загрузить)')
                         if input() == 'exit':
                             pygame.quit()
                             exit()
@@ -1022,11 +918,23 @@ def main():
                     Change = True
                 if not SurfaceMod:
                     if Change:
-                        for i, ln in enumerate(ScreenCoords(ToLocal(CamPos, CamRot, linesT), SDist)):
-                            if (BCs + [-1])[i] != ShowI:
-                                pygame.draw.line(screen, (colors[i] if period == periods[i] or ColorMode else (50, 50, 50)), Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), thimbs[i])
-                            else:
-                                pygame.draw.line(screen, StepSelectionColor, Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), 5)
+                        LocalModel = ToLocal(CamPos, CamRot, linesT)
+                        ARR = ScreenCoords(LocalModel, SDist)
+                        LPos = [0, 0]
+                        for ln in ARR:
+                            i = ln[2]
+                            if not(Dist(ln[0], ln[1]) < 2):
+                                LPos = Centrix(ln[1], SCRX, SCRY)
+                                if (BCs + [-1])[i] != ShowI:
+                                    pygame.draw.line(screen, (colors[i] if period == periods[i] or ColorMode else (50, 50, 50)), Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), thimbs[i])
+                                else:
+                                    pygame.draw.line(screen, StepSelectionColor, Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), 5)
+                            elif not(Dist(LPos, ln[0]) < 2):
+                                PixPos = [int(x) for x in Centrix(ln[0], SCRX, SCRY)]
+                                if (BCs + [-1])[i] != ShowI:
+                                    screen.set_at(PixPos, (colors[i] if period == periods[i] or ColorMode else (50, 50, 50)))
+                                else:
+                                    pygame.draw.line(screen, StepSelectionColor, Centrix(ln[0], SCRX, SCRY), Centrix(ln[1], SCRX, SCRY), 5)
                         LastFrame = screen.copy()
                         Change = False
                     else:
@@ -1042,17 +950,17 @@ def main():
                     DirLine = RotateLine2D([0, 20], CamRot[2] + PI / 2)
                     pygame.draw.line(screen, StepSelectionColor, [int(SCRX // 2), int(SCRY // 2)], [int(DirLine[0] + SCRX // 2), int(DirLine[1] + SCRY // 2)])
                 if Inform:
-                    screen.blit(font.render('Distance to screen surface: ' + str(SDist), 0, (255, 255, 255)), [0, 0])
-                    screen.blit(font.render('Movement speed: ' + str(SPD), 0, (255, 255, 255)), [0, 30])
-                    screen.blit(font.render('Arrow rotation speed: ' + str(math.degrees(RSPD)) + '                   Mouse senitive: ' + str(1 / MouseSensDiv), 0, (255, 255, 255)), [0, 60])
-                    screen.blit(font.render('World camera position: ' + 'X ' + str(-CamPos[0] / Mult) + '   Y ' + str(-CamPos[1] / Mult) + '   Z ' + str(-CamPos[2] / Mult), 0, (255, 255, 255)), [0, 90])
-                    screen.blit(font.render('World camera rotation: ' + 'X ' + str(CamRot[0] / Mult) + '   Y ' + str(CamRot[1] / Mult) + '   Z ' + str(CamRot[2] / Mult), 0, (255, 255, 255)), [0, 120])
-                    screen.blit(font.render('Global step: ' + str(ShowI + 1), 0, (255, 255, 255)), [0, 150])
-                    screen.blit(font.render('Time: ' + ToSeconds(Time), 0, (255, 255, 255)), [0, 180])
-                    screen.blit(font.render('Step start time: ' + ToSeconds(GoOnTimes[BCs.index(ShowI)]), 0, (255, 255, 255)), [0, 210])
-                    screen.blit(font.render('Step action time: ' + ToSeconds(PTimes[BCs.index(ShowI)]), 0, (255, 255, 255)), [0, 240])
-                    screen.blit(font.render('Phrese animation time speed: ' + str(PAnimS), 0, (255, 255, 255)), [0, 270])
-                    screen.blit(font.render('Global phrese animation time: ' + ToSeconds(PAnimT), 0, (255, 255, 255)), [0, 300])
+                    screen.blit(font.render('Расстояние до плоскости проекции: ' + str(SDist), 0, (255, 255, 255)), [0, 0])
+                    screen.blit(font.render('Скорость движения: ' + str(SPD), 0, (255, 255, 255)), [0, 30])
+                    screen.blit(font.render('Скорость вращения: ' + str(math.degrees(RSPD)) + '                   Чувствительность мыши: ' + str(1 / MouseSensDiv), 0, (255, 255, 255)), [0, 60])
+                    screen.blit(font.render('Позиция камеры: ' + 'X ' + str(-CamPos[0] / Mult) + '   Y ' + str(-CamPos[1] / Mult) + '   Z ' + str(-CamPos[2] / Mult), 0, (255, 255, 255)), [0, 90])
+                    screen.blit(font.render('Поворот камеры: ' + 'X ' + str(CamRot[0] / Mult) + '   Y ' + str(CamRot[1] / Mult) + '   Z ' + str(CamRot[2] / Mult), 0, (255, 255, 255)), [0, 120])
+                    screen.blit(font.render('Выделяемый шаг: ' + str(ShowI + 1), 0, (255, 255, 255)), [0, 150])
+                    screen.blit(font.render('Время на выполнение: ' + ToSeconds(Time), 0, (255, 255, 255)), [0, 180])
+                    screen.blit(font.render('Время начала действия: ' + ToSeconds(GoOnTimes[BCs.index(ShowI)]), 0, (255, 255, 255)), [0, 210])
+                    screen.blit(font.render('Продолжительность действия: ' + ToSeconds(PTimes[BCs.index(ShowI)]), 0, (255, 255, 255)), [0, 240])
+                    screen.blit(font.render('Скорость воспроизведения анимации: ' + str(PAnimS), 0, (255, 255, 255)), [0, 270])
+                    screen.blit(font.render('Время анимации: ' + ToSeconds(PAnimT), 0, (255, 255, 255)), [0, 300])
                     LN = Coms[BCs.index(ShowI)]
                     SimbMult = 9.5
                     if IsEXE:
@@ -1067,13 +975,13 @@ def main():
                                 screen.blit(font.render('>>' + ProgText[LN + i][:-1] + '<<', 0, SelectionTextColor), [0, SCRY - (5 - i) * 30])
                 if Controlls:
                     screen.fill((0, 0, 255))
-                    screen.blit(font.render('Moving - WASD, [LCtrl], [Space]                Zoom - [Mouse wheel Up/Down]', 0, (255, 255, 255)), [0, 0])
-                    screen.blit(font.render('Rotation - [Arrows] or [Mouse]                 Mous sensitive change - [,], [.]', 0, (255, 255, 255)), [0, 30])
-                    screen.blit(font.render('Speed change - [+], [-]                        Phrese animation speed change - [1], [2]', 0, (255, 255, 255)), [0, 60])
-                    screen.blit(font.render('Step change - [Q], [E]                         Screenshot - [F12]', 0, (255, 255, 255)), [0, 90])
-                    screen.blit(font.render('Show all models in color mode (On/Off) - [LShift]', 0, (255, 255, 255)), [0, 120])
-                    screen.blit(font.render('World information - [F2]                       2D draft view ON/OFF - [F3]', 0, (255, 255, 255)), [0, 150])
-                    screen.blit(font.render('Help bar Open/Close - [F1]', 0, (255, 255, 255)), [0, 180])
+                    screen.blit(font.render('Движение - WASD, [LCtrl], [Пробел]                Зум - [Колесо мыши]', 0, (255, 255, 255)), [0, 0])
+                    screen.blit(font.render('Поворот - [Стрелки] или [Мышь]                 Изменение чувствительности мыши - [,], [.]', 0, (255, 255, 255)), [0, 30])
+                    screen.blit(font.render('Изменение скорости движения - [+], [-]                        Изменение скорости анимации - [1], [2]', 0, (255, 255, 255)), [0, 60])
+                    screen.blit(font.render('Изменение выделяемого шага - [Q], [E]                         Скриншот - [F12]', 0, (255, 255, 255)), [0, 90])
+                    screen.blit(font.render('Цветовое выделение второстепенных моделей (Вкл/Выкл) - [LShift]', 0, (255, 255, 255)), [0, 120])
+                    screen.blit(font.render('Показ информации о чертеже - [F2]                       2D вид чертежа Вкл/Выкл - [F3]', 0, (255, 255, 255)), [0, 150])
+                    screen.blit(font.render('Показать/Скрыть подсказки по управлению - [F1]', 0, (255, 255, 255)), [0, 180])
                 pygame.display.update()
                 if Screenshot:
                     pygame.image.save(screen, FileNamesInp.replace('.', '~').replace(' ', '_') + str(int(timee.time())) + ".png")
