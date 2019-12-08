@@ -6,27 +6,32 @@ import time as timee
 import sys
 import os
 from pathlib import Path
+import urllib.request
 
 PI = 3.1415926535
 
-DConfText = """G0 - 255 0 0
-G1 - 0 0 255
-G2 - 0 255 0
-G3 - 128 255 0
-Program text frame color - 0 0 255
-Selected string border color - 255 255 0
-selected text color - 0 0 0
-Background - 0 0 0
-Step selection color - 255 255 255
-2D view first = True"""
+def UploadFont():
+    try:
+        url = 'https://github.com/Sigmarik/G-code-KIT/raw/master/arial.otf'
+        urllib.request.urlretrieve(url, 'arial.otf')
+    except:
+        print('Возникла ошибка во время скачивания')
+        return
+
+def UploadConf(ConfName):
+    try:
+        url = 'https://github.com/Sigmarik/G-code-KIT/raw/master/GKIT.conf'
+        urllib.request.urlretrieve(url, ConfName)
+    except:
+        print('Возникла ошибка во время скачивания')
+        return
 
 def LoadConf(ConfName):
     try:
         file = open(ConfName, 'r')
     except:
-        fl = open(ConfName, 'w')
-        fl.write(DConfText)
-        fl.close()
+        print('Файл', ConfName, 'не найден. Начинается загрузка')
+        UploadConf(ConfName)
         file = open(ConfName, 'r')
     N = 9
     colors = []
@@ -119,13 +124,17 @@ def read(FileNames):
     warnings = 0
     errors = 0
     log = open('LOG.txt', 'w')
-    if hasattr(sys, '_MEIPASS') or True:
+    try:
         #print('Record')
         font = open('arial.otf', 'r')
         font = pygame.font.Font(font, 12)
         IsEXE = True
-    else:
-        font = pygame.font.Font(None, 24)
+    except:
+        print('Не существует файла arial.otf или он повреждён... Начинается загрузка')
+        UploadFont()
+        font = open('arial.otf', 'r')
+        font = pygame.font.Font(font, 12)
+        IsEXE = True
     GlobalLength = 0
     for FileName in FileNames:
         try:
