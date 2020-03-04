@@ -10,6 +10,8 @@ import urllib.request
 
 PI = 3.1415926535
 
+WrongSimbol = """\\"""
+
 def UploadFont():
     try:
         url = 'https://github.com/Sigmarik/G-code-KIT/raw/master/arial.otf'
@@ -616,7 +618,7 @@ def ScreenCoords(lines, ScrDist):
         line = lines[i]
         if not((line[0][0] < ScrDist and line[1][0] < ScrDist) or (2 * Dist3(line[0], line[1]) / (Dist3(line[0], [0, 0, 0]) + Dist3(line[1], [0, 0, 0])) < 0.001)):
             if line[0][0] > ScrDist and line[1][0] > ScrDist:
-                if not(IsKalcked):
+                if True:#not(IsKalcked):
                     if line[0][0] != 0:
                         KY1 = line[0][1] / line[0][0]
                         KZ1 = line[0][2] / line[0][0]
@@ -993,7 +995,7 @@ def main():
                     screen.blit(font.render('Показать/Скрыть подсказки по управлению - [F1]', 0, (255, 255, 255)), [0, 180])
                 pygame.display.update()
                 if Screenshot:
-                    pygame.image.save(screen, FileNamesInp.replace('.', '~').replace(' ', '_') + str(int(timee.time())) + ".png")
+                    pygame.image.save(screen, FileNamesInp.replace('.', ',').replace(' ', '_').replace('/', '>>') + str(int(timee.time())) + ".png")
                     screen.fill((255, 255, 255))
                     TTM = timee.monotonic()
                     pygame.display.update()
