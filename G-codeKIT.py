@@ -995,7 +995,7 @@ def main():
                     screen.blit(font.render('Показать/Скрыть подсказки по управлению - [F1]', 0, (255, 255, 255)), [0, 180])
                 pygame.display.update()
                 if Screenshot:
-                    pygame.image.save(screen, FileNamesInp.replace('.', ',').replace(' ', '_').replace('/', '>>') + str(int(timee.time())) + ".png")
+                    pygame.image.save(screen, FileNamesInp.replace('.', '~').replace(' ', '_').replace('/', '~') + str(int(timee.time())) + ".png")
                     screen.fill((255, 255, 255))
                     TTM = timee.monotonic()
                     pygame.display.update()
